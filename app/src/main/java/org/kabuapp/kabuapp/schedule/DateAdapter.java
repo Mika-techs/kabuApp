@@ -1,7 +1,5 @@
 package org.kabuapp.kabuapp.schedule;
 
-import static org.kabuapp.kabuapp.ui.ThemeColorResolver.resolveColorAttribute;
-
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -9,30 +7,29 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
-
+import lombok.Getter;
+import lombok.Setter;
 import org.kabuapp.kabuapp.R;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import lombok.Getter;
-import lombok.Setter;
+import static org.kabuapp.kabuapp.ui.ThemeColorResolver.resolveColorAttribute;
 
 public class DateAdapter extends RecyclerView.Adapter<DateAdapter.DateViewHolder>
 {
     @Getter
     private int selectedItemPosition = RecyclerView.NO_POSITION;
-    private OnDateSelectedListener onDateSelectedListener;
-    private DateTimeFormatter weekdayFormatter;
-    private DateTimeFormatter monthFormatter;
+    private final OnDateSelectedListener onDateSelectedListener;
+    private final DateTimeFormatter weekdayFormatter;
+    private final DateTimeFormatter monthFormatter;
     @Getter
     private List<DateItem> dateList;
-    private Context context;
+    private final Context context;
 
     public interface OnDateSelectedListener
     {

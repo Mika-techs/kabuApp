@@ -6,9 +6,9 @@ import org.kabuapp.kabuapp.data.memory.MemExams;
 import org.kabuapp.kabuapp.db.model.entity.Exam;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class ExamMapper
 {
@@ -26,7 +26,7 @@ public class ExamMapper
             {
                 continue;
             }
-            if (lastInfo.equals(response.getInfo()))
+            else if (lastInfo.equals(response.getInfo()))
             {
                 lastExam.addDuration();
             }
@@ -49,18 +49,13 @@ public class ExamMapper
 
     public List<Exam> mapExamsToDb(MemExams exams, UUID userId)
     {
-        List<Exam> dbExams = new ArrayList<>(exams.getExams().size());
-        exams.getExams().values().forEach(exam ->
-        {
-            Exam dbExam = new Exam(
-                    exam.getDbId(),
-                    userId,
-                    exam.getBeginn(),
-                    exam.getDuration(),
-                    exam.getInfo());
-            dbExams.add(dbExam);
-        });
-        return dbExams;
+        return exams.getExams().values().stream().map(exam ->
+            new Exam(
+                exam.getDbId(),
+                userId,
+                exam.getBeginn(),
+                exam.getDuration(),
+                exam.getInfo())).collect(Collectors.toList());
     }
 
     public void mapDbToExams(List<Exam> dbExams, MemExams exams)

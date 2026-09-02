@@ -1,5 +1,11 @@
 package org.kabuapp.kabuapp.api;
 
+import org.kabuapp.kabuapp.api.exceptions.BadRequestException;
+import org.kabuapp.kabuapp.api.exceptions.UnauthorisedException;
+import org.kabuapp.kabuapp.api.models.AuthRequest;
+import org.kabuapp.kabuapp.api.models.ExamResponse;
+import org.kabuapp.kabuapp.api.models.LessonResponse;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -7,12 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.kabuapp.kabuapp.api.exceptions.BadRequestException;
-import org.kabuapp.kabuapp.api.exceptions.UnauthorisedException;
-import org.kabuapp.kabuapp.api.models.AuthRequest;
-import org.kabuapp.kabuapp.api.models.ExamResponse;
-import org.kabuapp.kabuapp.api.models.LessonResponse;
 
 public class DigikabuApiService extends ApiService
 {
@@ -25,6 +25,11 @@ public class DigikabuApiService extends ApiService
 
     public String auth(String username, String password) throws BadRequestException
     {
+        if (username == null || password == null)
+        {
+            Logger.getLogger("API").log(Level.WARNING, "username or password is null");
+            throw new BadRequestException();
+        }
         try
         {
             String response = executeRequest(
@@ -49,6 +54,11 @@ public class DigikabuApiService extends ApiService
 
     public List<LessonResponse> getSchedule(String token, LocalDate date, int days) throws UnauthorisedException
     {
+        if (token == null)
+        {
+            Logger.getLogger("API").log(Level.WARNING, "token is null");
+            throw new UnauthorisedException();
+        }
         try
         {
             return Arrays.asList(executeRequest(
@@ -75,6 +85,11 @@ public class DigikabuApiService extends ApiService
 
     public List<ExamResponse> getExams(String token, int month) throws UnauthorisedException
     {
+        if (token == null)
+        {
+            Logger.getLogger("API").log(Level.WARNING, "token is null");
+            throw new UnauthorisedException();
+        }
         try
         {
             return Arrays.asList(executeRequest(

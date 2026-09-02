@@ -197,10 +197,13 @@ public class ScheduleActivity extends Activity implements Callback, DateAdapter.
                 dateItems.add(generateDateItems(date, 1).get(0));
             }
         });
-        List<MemLesson> currentLessons = lessons.get(DateTimeUtils.getLocalDate());
-        if (currentLessons != null && currentLessons.stream().noneMatch(this::isInLesson))
+        if (DateTimeUtils.getLocalDate().equals(selectedDate))
         {
-            addNullLessonAtCurrentTime(currentLessons);
+            List<MemLesson> currentLessons = lessons.get(DateTimeUtils.getLocalDate());
+            if (currentLessons != null && currentLessons.stream().noneMatch(this::isInLesson))
+            {
+                addNullLessonAtCurrentTime(currentLessons);
+            }
         }
         if (lessons.containsKey(selectedDate))
         {

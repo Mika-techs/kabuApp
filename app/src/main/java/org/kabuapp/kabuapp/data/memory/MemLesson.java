@@ -1,15 +1,18 @@
 package org.kabuapp.kabuapp.data.memory;
 
-import java.time.LocalDate;
-import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDate;
+import java.util.UUID;
 
 @Getter
 @AllArgsConstructor
 public class MemLesson
 {
     private short begin;
+    @Setter
     private short end;
     private LocalDate date;
     private short group;
@@ -17,16 +20,8 @@ public class MemLesson
     private String name;
     private String teacher;
     private String room;
+    @Setter
     private UUID dbId;
-
-    public synchronized void setEnd(short end)
-    {
-        this.end = end;
-    }
-    public synchronized void setDbId(UUID dbId)
-    {
-        this.dbId = dbId;
-    }
 
     public boolean isFollowingLessonTo(MemLesson lesson)
     {
