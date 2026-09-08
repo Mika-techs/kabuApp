@@ -22,7 +22,7 @@ public class LifetimeController
     private final Map<DbType, LocalDateTime> lastUpdates = new EnumMap<>(DbType.class);
 
     private AppDatabase db;
-    private ExecutorService executorService;
+    private ExecutorService dbExecutor;
 
     public void updateLifetime(DbType type)
     {
@@ -53,7 +53,7 @@ public class LifetimeController
 
     public void saveLifetimeToDb(UUID userId)
     {
-        executorService.execute(() ->
+        dbExecutor.execute(() ->
         {
             for (DbType type : DbType.values())
             {
@@ -64,7 +64,7 @@ public class LifetimeController
 
     public void getDbLifetime(UUID userId)
     {
-        executorService.execute(() ->
+        dbExecutor.execute(() ->
         {
             List<Lifetime> lifetimes = db.lifetimeDao().get(userId);
             lifetimes.forEach(lifetime -> lastUpdates.put(lifetime.getDbType(), lifetime.getLastUpdate()));

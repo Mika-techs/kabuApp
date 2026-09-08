@@ -25,7 +25,8 @@ public class AuthController implements TokenSource
     private AuthStateholder stateholder;
     private AppDatabase db;
     private AuthApi authApi;
-    private ExecutorService executorService;
+    private ExecutorService dbExecutor;
+    private ExecutorService ioExecutor;
     private CredentialCipher cipher;
 
     @Override
@@ -45,7 +46,7 @@ public class AuthController implements TokenSource
         {
             String token = authApi.auth(stateholder.getUsername(), stateholder.getPassword());
             stateholder.setToken(token);
-            executorService.execute(this::save);
+            dbExecutor.execute(this::save);
             return token;
         }
         catch (ApiException e)
@@ -87,8 +88,10 @@ public class AuthController implements TokenSource
         {
             stateholder.setUsername(username);
             stateholder.setPassword(password);
-            auth(callback, args);
             stateholder.getUsers().put(username, stateholder.getDbId());
+            // Authentication is a network call, so it must not run on the caller's thread:
+            // setCredentials is invoked straight from a click listener.
+            ioExecutor.execute(() -> auth(callback, args));
             return true;
         }
         return false;
@@ -104,7 +107,7 @@ public class AuthController implements TokenSource
         try
         {
             stateholder.setToken(authApi.auth(stateholder.getUsername(), stateholder.getPassword()));
-            executorService.execute(this::save);
+            dbExecutor.execute(this::save);
             if (callback != null)
             {
                 callback.callback(args);
@@ -152,7 +155,7 @@ public class AuthController implements TokenSource
 
     public void getDbUsers()
     {
-        executorService.execute(() ->
+        dbExecutor.execute(() ->
         {
             List<User> users = db.userDao().getAll();
             Map<String, UUID> userMap = new LinkedHashMap<>();

@@ -36,11 +36,12 @@ public class ScheduleController
     @Getter
     private MemSchedule schedule;
     private AppDatabase db;
-    private ExecutorService executorService;
+    private ExecutorService dbExecutor;
+    private ExecutorService ioExecutor;
 
     public void updateSchedule(Callback ce, Object[] objects, Duration duration, UUID userId, boolean async)
     {
-        Future<?> future = executorService.submit(() ->
+        Future<?> future = ioExecutor.submit(() ->
         {
             if (lifetimeController.isLifetimeExpired(duration, DbType.SCHEDULE))
             {
@@ -54,7 +55,7 @@ public class ScheduleController
             }
             else
             {
-                executorService.execute(() -> db.lessonDao().deletePerUserBeforeDate(userId, DateTimeUtils.getFirstDayOfWeek()));
+                dbExecutor.execute(() -> db.lessonDao().deletePerUserBeforeDate(userId, DateTimeUtils.getFirstDayOfWeek()));
             }
         });
         if (!async)
@@ -90,7 +91,7 @@ public class ScheduleController
     public void getDbSchedule(UUID userId)
     {
         schedule.getLessons().clear();
-        executorService.execute(() -> scheduleMapper.mapDbLessonToSchedule(db.lessonDao().get(userId), schedule));
+        dbExecutor.execute(() -> scheduleMapper.mapDbLessonToSchedule(db.lessonDao().get(userId), schedule));
     }
 
     public boolean isSchool(LocalDate date)
@@ -103,7 +104,7 @@ public class ScheduleController
     public void resetSchedule(UUID userId)
     {
         resetState();
-        executorService.execute(() -> db.lessonDao().deletePerUser(userId));
+        dbExecutor.execute(() -> db.lessonDao().deletePerUser(userId));
     }
 
     public void resetState()

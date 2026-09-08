@@ -23,11 +23,11 @@ public class SessionController
     private LifetimeController lifetimeController;
     private AuthController authController;
     private ScheduleController scheduleController;
-    private ExecutorService executorService;
+    private ExecutorService dbExecutor;
 
     public void loadSession(Callback callback, Object[] objects, ScheduleUpdateTask runnable)
     {
-        executorService.execute(() ->
+        dbExecutor.execute(() ->
         {
             loadSyncSession(runnable);
             callback.callback(objects);
@@ -36,7 +36,7 @@ public class SessionController
 
     public void loadSession(ScheduleUpdateTask runnable)
     {
-        executorService.execute(() -> loadSyncSession(runnable));
+        dbExecutor.execute(() -> loadSyncSession(runnable));
     }
 
     private void loadSyncSession(ScheduleUpdateTask runnable)

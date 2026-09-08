@@ -115,7 +115,7 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
 
         if (!selectedUsername.equals(currentActiveUsername))
         {
-            getExecutorService().execute(() ->
+            getIoExecutor().execute(() ->
             {
                 getSessionController().switchAccount(selectedUsername, objects -> runOnUiThread(() ->
                 {
@@ -131,7 +131,7 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
 
     private void onDeleteAccountClicked()
     {
-        getExecutorService().execute(() ->
+        getIoExecutor().execute(() ->
         {
             getSessionController().removeUser(getAuthController().getId(), objects ->
             {

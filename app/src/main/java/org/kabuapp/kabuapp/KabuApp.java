@@ -10,44 +10,23 @@ import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import com.google.android.material.color.DynamicColors;
 import lombok.Getter;
-import lombok.Setter;
-import okhttp3.OkHttpClient;
-import org.kabuapp.kabuapp.core.net.AuthInterceptor;
-import org.kabuapp.kabuapp.core.net.TokenAuthenticator;
-import org.kabuapp.kabuapp.feature.auth.AuthApi;
-import org.kabuapp.kabuapp.feature.exam.ExamApi;
-import org.kabuapp.kabuapp.feature.schedule.ScheduleApi;
-import org.kabuapp.kabuapp.feature.auth.AuthStateholder;
-import org.kabuapp.kabuapp.feature.exam.MemExams;
-import org.kabuapp.kabuapp.core.data.CredentialCipher;
-import org.kabuapp.kabuapp.feature.schedule.MemSchedule;
-import org.kabuapp.kabuapp.feature.exam.ExamMapper;
-import org.kabuapp.kabuapp.feature.schedule.ScheduleMapper;
-import org.kabuapp.kabuapp.feature.auth.AuthController;
-import org.kabuapp.kabuapp.feature.exam.ExamController;
-import org.kabuapp.kabuapp.core.data.LifetimeController;
-import org.kabuapp.kabuapp.feature.schedule.ScheduleController;
-import org.kabuapp.kabuapp.feature.auth.SessionController;
-import org.kabuapp.kabuapp.feature.settings.SettingsController;
-import org.kabuapp.kabuapp.core.data.AppDatabase;
+import org.kabuapp.kabuapp.core.data.AppContainer;
+import org.kabuapp.kabuapp.core.util.DateTimeUtils;
 import org.kabuapp.kabuapp.feature.notification.ExamNotificationWorker;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleUpdateTask;
-import org.kabuapp.kabuapp.core.util.DateTimeUtils;
 
-import java.time.Duration;
 import java.util.Calendar;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Owns the object graph and the one-off startup work. Dependencies live in {@link AppContainer}
+ * rather than as fields here, so nothing can replace them at runtime.
+ */
 @Getter
-@Setter
 public class KabuApp extends Application
 {
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(15);
-    private static final Duration READ_TIMEOUT = Duration.ofSeconds(20);
-    /** Upper bound for a whole call including redirects and the 401 retry. */
-    private static final Duration CALL_TIMEOUT = Duration.ofSeconds(45);
+    private static final int NOTIFICATION_HOUR = 9;
+    private static final String DAILY_WORK_NAME = "DailyNotify";
 
     @Getter
     public static class GlobalTaskManager
@@ -55,68 +34,43 @@ public class KabuApp extends Application
         private final Handler mainHandler = new Handler(Looper.getMainLooper());
     }
 
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private ScheduleController scheduleController;
-    private LifetimeController lifetimeController;
+    private AppContainer container;
     private ScheduleUpdateTask scheduleUpdateTask;
-    private SettingsController settingsController;
-    private SessionController sessionController;
-    private ExecutorService executorService;
-    private ScheduleMapper scheduleMapper;
-    private AuthController authController;
-    private ExamController examController;
-    private ExamMapper examMapper;
-    private MemSchedule schedule;
-    private AppDatabase db;
 
     @Override
     public void onCreate()
     {
         super.onCreate();
 
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-        StrictMode.setThreadPolicy(policy);
-
+        enableStrictModeInDebug();
         DynamicColors.applyToActivitiesIfAvailable(this);
 
-        executorService = Executors.newCachedThreadPool();
+        container = new AppContainer(this);
+        container.getSchedule().setSelectedDate(DateTimeUtils.getLocalDate());
 
-        schedule = new MemSchedule();
-        schedule.setSelectedDate(DateTimeUtils.getLocalDate());
-
-        db = AppDatabase.getDatabase(getApplicationContext());
-        scheduleMapper = new ScheduleMapper();
-        examMapper = new ExamMapper();
-
-        // The authenticate call must not be intercepted, so it runs on a client without the
-        // auth stack. That also breaks the cycle: AuthController needs AuthApi, and the
-        // interceptor and authenticator need AuthController.
-        OkHttpClient baseClient = new OkHttpClient.Builder()
-            .connectTimeout(CONNECT_TIMEOUT)
-            .readTimeout(READ_TIMEOUT)
-            .callTimeout(CALL_TIMEOUT)
-            .build();
-        AuthApi authApi = new AuthApi(baseClient);
-        authController = new AuthController(new AuthStateholder(), db, authApi, executorService, new CredentialCipher());
-
-        OkHttpClient authedClient = baseClient.newBuilder()
-            .addInterceptor(new AuthInterceptor(authController))
-            .authenticator(new TokenAuthenticator(authController))
-            .build();
-
-        lifetimeController = new LifetimeController(db, executorService);
-        scheduleController = new ScheduleController(
-            new ScheduleApi(authedClient), scheduleMapper, lifetimeController, schedule, db, executorService);
-        examController = new ExamController(
-            new MemExams(), examMapper, lifetimeController, new ExamApi(authedClient), executorService, db);
-        sessionController = new SessionController(db, examController, lifetimeController, authController, scheduleController, executorService);
         scheduleUpdateTask = new ScheduleUpdateTask(null);
-        settingsController = new SettingsController(executorService, db);
+        container.getSessionController().loadSession(scheduleUpdateTask);
+        container.getSettingsController().loadSettings();
 
-        sessionController.loadSession(scheduleUpdateTask);
-
-        settingsController.loadSettings();
         startNotificationWorker();
+    }
+
+    /**
+     * The permissive policy this replaces was hiding real violations: authentication used to run
+     * its HTTP call on the main thread, and two account operations touched the database there.
+     */
+    private void enableStrictModeInDebug()
+    {
+        if (!BuildConfig.DEBUG)
+        {
+            return;
+        }
+        StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
+            .detectNetwork()
+            .detectDiskReads()
+            .detectDiskWrites()
+            .penaltyLog()
+            .build());
     }
 
     private void startNotificationWorker()
@@ -128,7 +82,7 @@ public class KabuApp extends Application
         Calendar calendar = Calendar.getInstance();
         long now = calendar.getTimeInMillis();
 
-        calendar.set(Calendar.HOUR_OF_DAY, 9);
+        calendar.set(Calendar.HOUR_OF_DAY, NOTIFICATION_HOUR);
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
 
@@ -146,9 +100,8 @@ public class KabuApp extends Application
                 .build();
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "DailyNotify",
+            DAILY_WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
-            dailyWorkRequest
-        );
+            dailyWorkRequest);
     }
 }

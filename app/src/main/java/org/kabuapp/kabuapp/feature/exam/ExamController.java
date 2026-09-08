@@ -36,12 +36,13 @@ public class ExamController
     private ExamMapper examMapper;
     private LifetimeController lifetimeController;
     private ExamApi examApi;
-    private ExecutorService executorService;
+    private ExecutorService dbExecutor;
+    private ExecutorService ioExecutor;
     private AppDatabase db;
 
     public void updateExams(Callback ce, Object[] objects, Duration duration, UUID userId)
     {
-        executorService.execute(() ->
+        ioExecutor.execute(() ->
         {
             if (lifetimeController.isLifetimeExpired(duration, DbType.EXAM))
             {
@@ -55,7 +56,7 @@ public class ExamController
             }
             else
             {
-                executorService.execute(() -> db.examDao().deletePerUserBeforeDate(userId, DateTimeUtils.getFirstDayOfMonth()));
+                dbExecutor.execute(() -> db.examDao().deletePerUserBeforeDate(userId, DateTimeUtils.getFirstDayOfMonth()));
             }
         });
     }
@@ -91,7 +92,7 @@ public class ExamController
 
     public void getDbExams(UUID userId)
     {
-        executorService.execute(() -> examMapper.mapDbToExams(db.examDao().get(userId), exams));
+        dbExecutor.execute(() -> examMapper.mapDbToExams(db.examDao().get(userId), exams));
     }
 
     private void fetchExams(int month, UUID userId) throws ApiException
@@ -104,7 +105,7 @@ public class ExamController
     public void resetExams(UUID userId)
     {
         resetState();
-        executorService.execute(() -> db.examDao().deletePerUser(userId));
+        dbExecutor.execute(() -> db.examDao().deletePerUser(userId));
     }
 
     public void resetState()

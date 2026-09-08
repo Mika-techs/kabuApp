@@ -9,50 +9,61 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import org.kabuapp.kabuapp.KabuApp;
-import org.kabuapp.kabuapp.feature.auth.AuthController;
-import org.kabuapp.kabuapp.feature.exam.ExamController;
+import org.kabuapp.kabuapp.core.data.AppContainer;
 import org.kabuapp.kabuapp.core.data.LifetimeController;
-import org.kabuapp.kabuapp.feature.schedule.ScheduleController;
+import org.kabuapp.kabuapp.feature.auth.AuthController;
 import org.kabuapp.kabuapp.feature.auth.SessionController;
+import org.kabuapp.kabuapp.feature.exam.ExamController;
+import org.kabuapp.kabuapp.feature.schedule.ScheduleController;
 import org.kabuapp.kabuapp.feature.settings.SettingsController;
 
 import java.util.concurrent.ExecutorService;
 
+/**
+ * Applies edge-to-edge insets and provides the nav-bar button wiring. Dependencies come from
+ * {@link AppContainer}; this class is not a dependency conduit of its own.
+ */
 public abstract class Activity extends AppCompatActivity
 {
+    protected AppContainer getContainer()
+    {
+        return ((KabuApp) getApplication()).getContainer();
+    }
+
     protected ScheduleController getScheduleController()
     {
-        return getKabuApplication().getScheduleController();
+        return getContainer().getScheduleController();
     }
 
     protected ExamController getExamController()
     {
-        return getKabuApplication().getExamController();
+        return getContainer().getExamController();
     }
 
     protected LifetimeController getLifetimeController()
     {
-        return getKabuApplication().getLifetimeController();
+        return getContainer().getLifetimeController();
     }
 
     protected SettingsController getSettingsController()
     {
-        return getKabuApplication().getSettingsController();
+        return getContainer().getSettingsController();
     }
 
     protected SessionController getSessionController()
     {
-        return getKabuApplication().getSessionController();
-    }
-
-    protected ExecutorService getExecutorService()
-    {
-        return getKabuApplication().getExecutorService();
+        return getContainer().getSessionController();
     }
 
     protected AuthController getAuthController()
     {
-        return getKabuApplication().getAuthController();
+        return getContainer().getAuthController();
+    }
+
+    /** Bounded pool for work that must leave the main thread but is not a database write. */
+    protected ExecutorService getIoExecutor()
+    {
+        return getContainer().getIoExecutor();
     }
 
     @Override
@@ -69,7 +80,6 @@ public abstract class Activity extends AppCompatActivity
         });
     }
 
-
     protected void barButtonRefListener(ImageButton settingsButton, Class<?> activity)
     {
         settingsButton.setOnClickListener(v ->
@@ -78,10 +88,4 @@ public abstract class Activity extends AppCompatActivity
             startActivity(i);
         });
     }
-
-    private KabuApp getKabuApplication()
-    {
-        return ((KabuApp) getApplication());
-    }
-
 }

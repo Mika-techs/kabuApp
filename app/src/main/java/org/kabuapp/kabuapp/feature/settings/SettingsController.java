@@ -10,12 +10,12 @@ import java.util.concurrent.ExecutorService;
 public class SettingsController
 {
     private MemSettings settings;
-    private ExecutorService executorService;
+    private ExecutorService dbExecutor;
     private AppDatabase db;
 
-    public SettingsController(ExecutorService executorService, AppDatabase db)
+    public SettingsController(ExecutorService dbExecutor, AppDatabase db)
     {
-        this.executorService = executorService;
+        this.dbExecutor = dbExecutor;
         this.db = db;
     }
 
@@ -49,12 +49,12 @@ public class SettingsController
 
     private void updateSettings()
     {
-        executorService.execute(() -> db.settingsDao().update(toSettings()));
+        dbExecutor.execute(() -> db.settingsDao().update(toSettings()));
     }
 
     public void loadSettings()
     {
-        executorService.execute(() ->
+        dbExecutor.execute(() ->
         {
             Settings dbSettings = db.settingsDao().get();
             if (dbSettings == null)

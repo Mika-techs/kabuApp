@@ -278,7 +278,7 @@ public class ScheduleActivity extends Activity implements Callback, DateAdapter.
 
     private void updateScheduleLoop()
     {
-        getExecutorService().execute(() ->
+        getIoExecutor().execute(() ->
         {
             while (!this.isDestroyed())
             {
