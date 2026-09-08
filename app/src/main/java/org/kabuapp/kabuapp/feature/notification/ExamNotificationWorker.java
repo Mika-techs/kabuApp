@@ -54,7 +54,7 @@ public class ExamNotificationWorker extends Worker
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), "KabuAppExamNextDay")
             .setSmallIcon(R.drawable.kabu_app_mc)
             .setContentTitle(getApplicationContext().getString(R.string.nofification_exam_next_day_title))
-            .setContentText(exam.getInfo())
+            .setContentText(exam.info())
             .setContentIntent(pendingIntent)
             .setAutoCancel(true);
 
@@ -73,7 +73,7 @@ public class ExamNotificationWorker extends Worker
             return null;
         }
         return db.examDao().getByDate(DateTimeUtils.getLocalDate().plusDays(1)).stream()
-            .filter(exam -> exam.getDuration() != null && exam.getDuration() == SINGLE_DAY)
+            .filter(exam -> exam.duration() == SINGLE_DAY)
             .findFirst()
             .orElse(null);
     }

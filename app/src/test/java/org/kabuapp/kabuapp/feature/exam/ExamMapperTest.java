@@ -39,8 +39,8 @@ public class ExamMapperTest
                     new ExamResponse("09.09.2026", "Project")), USER);
 
         assertEquals(1, exams.size());
-        assertEquals(Short.valueOf((short) 3), exams.get(0).getDuration());
-        assertEquals(LocalDate.of(2026, 9, 7), exams.get(0).getDate());
+        assertEquals((short) 3, exams.get(0).duration());
+        assertEquals(LocalDate.of(2026, 9, 7), exams.get(0).date());
     }
 
     @Test
@@ -50,7 +50,7 @@ public class ExamMapperTest
             List.of(new ExamResponse("30.09.2026", "Project"), new ExamResponse("01.10.2026", "Project")), USER);
 
         assertEquals(1, exams.size());
-        assertEquals(Short.valueOf((short) 2), exams.get(0).getDuration());
+        assertEquals((short) 2, exams.get(0).duration());
     }
 
     @Test
@@ -69,7 +69,7 @@ public class ExamMapperTest
             List.of(new ExamResponse("07.09.2026", ""), new ExamResponse("08.09.2026", "Maths")), USER);
 
         assertEquals(1, exams.size());
-        assertEquals("Maths", exams.get(0).getInfo());
+        assertEquals("Maths", exams.get(0).info());
     }
 
     @Test

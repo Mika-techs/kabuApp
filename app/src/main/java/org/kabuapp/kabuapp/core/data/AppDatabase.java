@@ -1,7 +1,6 @@
 package org.kabuapp.kabuapp.core.data;
 
 import android.content.Context;
-import androidx.annotation.NonNull;
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
@@ -9,11 +8,9 @@ import androidx.room.TypeConverters;
 
 import org.kabuapp.kabuapp.feature.exam.ExamDao;
 import org.kabuapp.kabuapp.feature.schedule.LessonDao;
-import org.kabuapp.kabuapp.core.data.LifetimeDao;
 import org.kabuapp.kabuapp.feature.auth.UserDao;
 import org.kabuapp.kabuapp.feature.exam.Exam;
 import org.kabuapp.kabuapp.feature.schedule.Lesson;
-import org.kabuapp.kabuapp.core.data.Lifetime;
 import org.kabuapp.kabuapp.feature.auth.User;
 
 @Database(entities = { User.class, Lesson.class, Lifetime.class, Exam.class }, version = 5)

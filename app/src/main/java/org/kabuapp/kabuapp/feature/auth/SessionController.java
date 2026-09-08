@@ -75,7 +75,7 @@ public class SessionController
 
     public List<Map<UUID, String>> getUsers()
     {
-        return db.userDao().getAll().stream().map(user -> Map.of(user.getId(), user.getUsername())).collect(Collectors.toList());
+        return db.userDao().getAll().stream().map(user -> Map.of(user.id(), user.username())).collect(Collectors.toList());
     }
 
     public void switchAccount(String selectedUsername, Runnable onSwitched)

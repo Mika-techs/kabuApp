@@ -16,9 +16,6 @@ import java.util.UUID;
 @Dao
 public interface LessonDao
 {
-    @Query("SELECT * FROM schedule WHERE userId = :userId")
-    List<Lesson> get(UUID userId);
-
     /** Room re-emits on every write, which is what removes the need for manual UI notification. */
     @Query("SELECT * FROM schedule WHERE userId = :userId")
     LiveData<List<Lesson>> observe(UUID userId);

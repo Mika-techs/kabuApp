@@ -49,14 +49,15 @@ public class ScheduleMapper
      */
     private static List<Lesson> mergeConsecutive(List<Lesson> block)
     {
-        block.sort(Comparator.comparing(Lesson::getBegin));
+        block.sort(Comparator.comparing(Lesson::begin));
         List<Lesson> merged = new ArrayList<>();
         for (Lesson lesson : block)
         {
-            Lesson previous = merged.isEmpty() ? null : merged.get(merged.size() - 1);
-            if (previous != null && previous.getEnd() != null && lesson.getBegin() == previous.getEnd() + 1)
+            int last = merged.size() - 1;
+            Lesson previous = merged.isEmpty() ? null : merged.get(last);
+            if (previous != null && lesson.begin() == previous.end() + 1)
             {
-                previous.setEnd(lesson.getEnd());
+                merged.set(last, previous.withEnd(lesson.end()));
             }
             else
             {
@@ -68,8 +69,8 @@ public class ScheduleMapper
 
     private static Key keyOf(Lesson lesson)
     {
-        return new Key(lesson.getDate(), lesson.getGroup(), lesson.getName(),
-            lesson.getTeacher(), lesson.getRoom(), lesson.getMaxGroup());
+        return new Key(lesson.date(), lesson.group(), lesson.name(),
+            lesson.teacher(), lesson.room(), lesson.maxGroup());
     }
 
     private static Lesson toLesson(LessonResponse response, UUID userId)

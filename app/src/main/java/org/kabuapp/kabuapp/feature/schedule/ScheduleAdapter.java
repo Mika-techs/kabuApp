@@ -39,6 +39,9 @@ public class ScheduleAdapter extends ListAdapter<ScheduleRow, RecyclerView.ViewH
             return oldItem instanceof ScheduleRow.NowDividerRow && newItem instanceof ScheduleRow.NowDividerRow;
         }
 
+        // Every implementation of ScheduleRow is a record, so equals() compares by value; lint only
+        // sees the sealed interface and cannot tell.
+        @SuppressLint("DiffUtilEquals")
         @Override
         public boolean areContentsTheSame(@NonNull ScheduleRow oldItem, @NonNull ScheduleRow newItem)
         {

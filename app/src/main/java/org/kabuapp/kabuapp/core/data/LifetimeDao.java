@@ -16,7 +16,4 @@ public interface LifetimeDao
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsert(Lifetime lifetime);
-
-    @Query("DELETE FROM lifetimes WHERE userId = :userId")
-    void delete(UUID userId);
 }

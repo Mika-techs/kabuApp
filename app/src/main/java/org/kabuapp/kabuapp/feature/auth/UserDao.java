@@ -7,7 +7,6 @@ import androidx.room.Update;
 import java.util.List;
 import java.util.UUID;
 
-import org.kabuapp.kabuapp.feature.auth.User;
 
 @Dao
 public interface UserDao

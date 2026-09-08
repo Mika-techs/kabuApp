@@ -27,8 +27,8 @@ public final class ScheduleRowFactory
     public static List<ScheduleRow> rowsFor(List<Lesson> lessons, LocalDate date, LocalDate today, LocalTime now)
     {
         List<ScheduleRow.LessonRow> dayRows = lessons.stream()
-            .filter(lesson -> date.equals(lesson.getDate()))
-            .sorted(Comparator.comparing(Lesson::getBegin).thenComparing(Lesson::getGroup))
+            .filter(lesson -> date.equals(lesson.date()))
+            .sorted(Comparator.comparing(Lesson::begin).thenComparing(Lesson::group))
             .flatMap(lesson -> splitAtFirstBreak(toRow(lesson)).stream())
             .collect(Collectors.toList());
 
@@ -44,7 +44,7 @@ public final class ScheduleRowFactory
     public static List<LocalDate> schoolDays(List<Lesson> lessons)
     {
         return lessons.stream()
-            .map(Lesson::getDate)
+            .map(Lesson::date)
             .distinct()
             .sorted()
             .collect(Collectors.toList());
@@ -53,14 +53,14 @@ public final class ScheduleRowFactory
     private static ScheduleRow.LessonRow toRow(Lesson lesson)
     {
         return new ScheduleRow.LessonRow(
-            lesson.getDate(),
-            lesson.getBegin(),
-            lesson.getEnd() == null ? lesson.getBegin() : lesson.getEnd(),
-            lesson.getGroup(),
-            lesson.getMaxGroup() == null ? 1 : lesson.getMaxGroup(),
-            lesson.getName(),
-            lesson.getTeacher(),
-            lesson.getRoom());
+            lesson.date(),
+            lesson.begin(),
+            lesson.end(),
+            lesson.group(),
+            lesson.maxGroup(),
+            lesson.name(),
+            lesson.teacher(),
+            lesson.room());
     }
 
     /**

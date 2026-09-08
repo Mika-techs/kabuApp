@@ -67,7 +67,7 @@ public class LifetimeController
         dbExecutor.execute(() ->
         {
             List<Lifetime> lifetimes = db.lifetimeDao().get(userId);
-            lifetimes.forEach(lifetime -> lastUpdates.put(lifetime.getDbType(), lifetime.getLastUpdate()));
+            lifetimes.forEach(lifetime -> lastUpdates.put(lifetime.dbType(), lifetime.lastUpdate()));
         });
     }
 }

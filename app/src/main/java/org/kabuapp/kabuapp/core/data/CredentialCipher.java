@@ -5,8 +5,10 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import java.nio.ByteBuffer;
-import java.security.KeyStore;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.util.Arrays;
 
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
@@ -39,7 +41,7 @@ public class CredentialCipher
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(Cipher.ENCRYPT_MODE, key());
         byte[] iv = cipher.getIV();
-        byte[] encrypted = doFinal(cipher, plaintext.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        byte[] encrypted = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
         return ByteBuffer.allocate(iv.length + encrypted.length).put(iv).put(encrypted).array();
     }
 
@@ -55,13 +57,8 @@ public class CredentialCipher
         }
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(TAG_LENGTH_BITS, stored, 0, IV_LENGTH));
-        byte[] plaintext = doFinal(cipher, java.util.Arrays.copyOfRange(stored, IV_LENGTH, stored.length));
-        return new String(plaintext, java.nio.charset.StandardCharsets.UTF_8);
-    }
-
-    private static byte[] doFinal(Cipher cipher, byte[] input) throws GeneralSecurityException
-    {
-        return cipher.doFinal(input);
+        byte[] plaintext = cipher.doFinal(Arrays.copyOfRange(stored, IV_LENGTH, stored.length));
+        return new String(plaintext, StandardCharsets.UTF_8);
     }
 
     private static synchronized SecretKey key() throws GeneralSecurityException

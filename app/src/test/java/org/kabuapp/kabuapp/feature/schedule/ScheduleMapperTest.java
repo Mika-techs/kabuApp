@@ -33,8 +33,8 @@ public class ScheduleMapperTest
             List.of(response(1, 1, "Maths", "1/1"), response(2, 2, "Maths", "1/1")), USER);
 
         assertEquals(1, lessons.size());
-        assertEquals(1, lessons.get(0).getBegin());
-        assertEquals(Short.valueOf((short) 2), lessons.get(0).getEnd());
+        assertEquals(1, lessons.get(0).begin());
+        assertEquals((short) 2, lessons.get(0).end());
     }
 
     @Test
@@ -69,7 +69,7 @@ public class ScheduleMapperTest
     {
         List<Lesson> lessons = mapper.toEntities(List.of(response(1, 1, "Maths", "1/1")), USER);
 
-        assertEquals(LocalDate.of(2026, 9, 7), lessons.get(0).getDate());
+        assertEquals(LocalDate.of(2026, 9, 7), lessons.get(0).date());
     }
 
     @Test
@@ -77,8 +77,8 @@ public class ScheduleMapperTest
     {
         List<Lesson> lessons = mapper.toEntities(List.of(response(4, 4, "Sport", "2/3")), USER);
 
-        assertEquals(2, lessons.get(0).getGroup());
-        assertEquals(Short.valueOf((short) 3), lessons.get(0).getMaxGroup());
+        assertEquals(2, lessons.get(0).group());
+        assertEquals((short) 3, lessons.get(0).maxGroup());
     }
 
     @Test

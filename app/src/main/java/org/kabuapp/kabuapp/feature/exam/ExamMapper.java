@@ -32,7 +32,7 @@ public class ExamMapper
         responses.stream()
             .filter(response -> response.getInfo() != null && !response.getInfo().isEmpty())
             .map(response -> new Exam(userId, parseDate(response.getDate()), response.getInfo(), (short) 1))
-            .sorted(Comparator.comparing(Exam::getDate))
+            .sorted(Comparator.comparing(Exam::date))
             .forEach(exam -> merge(parsed, exam));
         return parsed;
     }
@@ -40,12 +40,13 @@ public class ExamMapper
     /** Extends the previous exam when this one continues it on the next day. */
     private static void merge(List<Exam> merged, Exam exam)
     {
-        for (Exam existing : merged)
+        for (int i = 0; i < merged.size(); i++)
         {
-            if (existing.getInfo().equals(exam.getInfo())
-                && existing.getDate().plusDays(existing.getDuration()).equals(exam.getDate()))
+            Exam existing = merged.get(i);
+            if (existing.info().equals(exam.info())
+                && existing.date().plusDays(existing.duration()).equals(exam.date()))
             {
-                existing.setDuration((short) (existing.getDuration() + 1));
+                merged.set(i, existing.extendedByADay());
                 return;
             }
         }

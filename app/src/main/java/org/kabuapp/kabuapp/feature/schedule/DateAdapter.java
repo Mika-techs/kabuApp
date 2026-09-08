@@ -2,34 +2,40 @@ package org.kabuapp.kabuapp.feature.schedule;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import lombok.Getter;
-import lombok.Setter;
 import org.kabuapp.kabuapp.R;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.kabuapp.kabuapp.core.ui.ThemeColorResolver.resolveColorAttribute;
 
+/**
+ * The horizontal date strip. Selection is held only as a position - the item records used to
+ * carry an {@code isSelected} flag as well, which could disagree with it.
+ */
 public class DateAdapter extends RecyclerView.Adapter<DateAdapter.DateViewHolder>
 {
-    @Getter
-    private int selectedItemPosition = RecyclerView.NO_POSITION;
+    private static final float SELECTED_ELEVATION = 10f;
+
     private final OnDateSelectedListener onDateSelectedListener;
     private final DateTimeFormatter weekdayFormatter;
     private final DateTimeFormatter monthFormatter;
-    @Getter
-    private List<DateItem> dateList;
     private final Context context;
+
+    @Getter
+    private int selectedItemPosition = RecyclerView.NO_POSITION;
+    private List<DateItem> dateList;
 
     public interface OnDateSelectedListener
     {
@@ -39,7 +45,7 @@ public class DateAdapter extends RecyclerView.Adapter<DateAdapter.DateViewHolder
     public DateAdapter(Context context, List<DateItem> dateList, OnDateSelectedListener listener)
     {
         this.context = context;
-        this.dateList = dateList;
+        this.dateList = new ArrayList<>(dateList);
         this.onDateSelectedListener = listener;
         this.monthFormatter = DateTimeFormatter.ofPattern("MMM", context.getResources().getConfiguration().getLocales().get(0));
         this.weekdayFormatter = DateTimeFormatter.ofPattern("EE", context.getResources().getConfiguration().getLocales().get(0));
@@ -49,68 +55,33 @@ public class DateAdapter extends RecyclerView.Adapter<DateAdapter.DateViewHolder
     @Override
     public DateViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType)
     {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.layout_date_item, parent, false);
-        return new DateViewHolder(view);
+        return new DateViewHolder(
+            LayoutInflater.from(parent.getContext()).inflate(R.layout.layout_date_item, parent, false));
     }
 
-    @SuppressLint("ResourceType")
     @Override
     public void onBindViewHolder(@NonNull DateViewHolder holder, int position)
     {
         DateItem dateItem = dateList.get(position);
 
-        holder.monthTextView.setText(dateItem.getDate().format(monthFormatter));
-        holder.dayTextView.setText(dateItem.getDay());
-        holder.weekdayTextView.setText(dateItem.getDate().format(weekdayFormatter));
+        holder.monthTextView.setText(dateItem.date().format(monthFormatter));
+        holder.dayTextView.setText(dateItem.day());
+        holder.weekdayTextView.setText(dateItem.date().format(weekdayFormatter));
 
-        if (dateItem.isSelected())
+        if (position == selectedItemPosition)
         {
-            int selectedBackgroundColor = android.R.attr.colorPrimary;
-            try
-            {
-                android.util.TypedValue typedValue = new android.util.TypedValue();
-                context.getTheme().resolveAttribute(android.R.attr.colorBackgroundFloating, typedValue, true);
-                selectedBackgroundColor = typedValue.data;
-            }
-            catch (Exception ignored)
-            {
-            }
-
-            holder.itemView.setBackgroundColor(selectedBackgroundColor);
-            holder.itemView.setElevation(10f);
-            holder.dayTextView.setTextColor(resolveColorAttribute(context, android.R.attr.textColorPrimary));
-            holder.monthTextView.setTextColor(resolveColorAttribute(context, android.R.attr.textColorPrimary));
-            holder.weekdayTextView.setTextColor(resolveColorAttribute(context, android.R.attr.textColorPrimary));
+            holder.itemView.setBackgroundColor(floatingBackgroundColor());
+            holder.itemView.setElevation(SELECTED_ELEVATION);
+            holder.setTextColor(resolveColorAttribute(context, android.R.attr.textColorPrimary));
         }
         else
         {
             holder.itemView.setBackgroundResource(android.R.color.transparent);
-            holder.dayTextView.setTextColor(ContextCompat.getColor(context, android.R.color.darker_gray));
-            holder.monthTextView.setTextColor(ContextCompat.getColor(context, android.R.color.darker_gray));
-            holder.weekdayTextView.setTextColor(ContextCompat.getColor(context, android.R.color.darker_gray));
+            holder.itemView.setElevation(0f);
+            holder.setTextColor(ContextCompat.getColor(context, android.R.color.darker_gray));
         }
 
-        holder.itemView.setOnClickListener(v ->
-        {
-            int clickedPosition = holder.getAdapterPosition();
-            if (clickedPosition != RecyclerView.NO_POSITION)
-            {
-                if (selectedItemPosition != RecyclerView.NO_POSITION && selectedItemPosition < dateList.size())
-                {
-                    dateList.get(selectedItemPosition).setSelected(false);
-                    notifyItemChanged(selectedItemPosition);
-                }
-
-                selectedItemPosition = clickedPosition;
-                dateList.get(selectedItemPosition).setSelected(true);
-                notifyItemChanged(selectedItemPosition);
-
-                if (onDateSelectedListener != null)
-                {
-                    onDateSelectedListener.onDateSelected(dateItem.getDate());
-                }
-            }
-        });
+        holder.itemView.setOnClickListener(v -> select(holder.getBindingAdapterPosition()));
     }
 
     @Override
@@ -119,84 +90,82 @@ public class DateAdapter extends RecyclerView.Adapter<DateAdapter.DateViewHolder
         return dateList.size();
     }
 
-    public void setSelectedDate(LocalDate date)
-    {
-        int old = selectedItemPosition;
-        int positionToSelect = -1;
-        for (int i = 0; i < dateList.size(); i++)
-        {
-            if (dateList.get(i).getDate().equals(date))
-            {
-                positionToSelect = i;
-                break;
-            }
-        }
-        if (positionToSelect != -1)
-        {
-            if (selectedItemPosition != RecyclerView.NO_POSITION && selectedItemPosition < dateList.size())
-            {
-                dateList.get(selectedItemPosition).setSelected(false);
-            }
-            selectedItemPosition = positionToSelect;
-            dateList.get(selectedItemPosition).setSelected(true);
-            notifyItemChanged(positionToSelect);
-            notifyItemChanged(old);
-        }
-    }
-
     /** Replaces the strip's contents; the dates come from the observed lesson rows. */
     @SuppressLint("NotifyDataSetChanged")
     public void setDates(List<DateItem> dates)
     {
-        this.dateList = dates;
+        this.dateList = new ArrayList<>(dates);
         this.selectedItemPosition = RecyclerView.NO_POSITION;
         notifyDataSetChanged();
     }
 
-    public void addDate(DateItem dateItem)
+    public void setSelectedDate(LocalDate date)
     {
-        if (dateList.stream().noneMatch(date -> date.getDate().equals(dateItem.getDate())))
+        for (int i = 0; i < dateList.size(); i++)
         {
-            int insertionPosition = 0;
-            for (int i = 0; i < dateList.size(); i++)
+            if (dateList.get(i).date().equals(date))
             {
-                if (dateItem.getDate().isBefore(dateList.get(i).getDate()))
-                {
-                    insertionPosition = i;
-                    break;
-                }
-                insertionPosition = i + 1;
-            }
-            LocalDate selected = null;
-            if (dateList.size() >= selectedItemPosition)
-            {
-                selected = dateList.get(selectedItemPosition).getDate();
-            }
-            dateList.add(insertionPosition, dateItem);
-            notifyItemInserted(insertionPosition);
-            if (selected != null)
-            {
-                setSelectedDate(selected);
+                moveSelectionTo(i);
+                return;
             }
         }
     }
 
-    @Getter
-    @Setter
-    public static class DateViewHolder extends RecyclerView.ViewHolder
+    private void select(int position)
     {
-        private TextView monthTextView;
-        private TextView dayTextView;
-        private TextView weekdayTextView;
-        private LinearLayout dateItemLayout;
+        if (position == RecyclerView.NO_POSITION)
+        {
+            return;
+        }
+        LocalDate date = dateList.get(position).date();
+        moveSelectionTo(position);
+        if (onDateSelectedListener != null)
+        {
+            onDateSelectedListener.onDateSelected(date);
+        }
+    }
 
-        public DateViewHolder(@NonNull View itemView)
+    private void moveSelectionTo(int position)
+    {
+        int previous = selectedItemPosition;
+        selectedItemPosition = position;
+        if (previous != RecyclerView.NO_POSITION)
+        {
+            notifyItemChanged(previous);
+        }
+        notifyItemChanged(position);
+    }
+
+    @SuppressLint("ResourceType")
+    private int floatingBackgroundColor()
+    {
+        TypedValue typedValue = new TypedValue();
+        if (context.getTheme().resolveAttribute(android.R.attr.colorBackgroundFloating, typedValue, true))
+        {
+            return typedValue.data;
+        }
+        return resolveColorAttribute(context, android.R.attr.colorBackground);
+    }
+
+    static class DateViewHolder extends RecyclerView.ViewHolder
+    {
+        private final TextView monthTextView;
+        private final TextView dayTextView;
+        private final TextView weekdayTextView;
+
+        DateViewHolder(@NonNull View itemView)
         {
             super(itemView);
             monthTextView = itemView.findViewById(R.id.text_view_month);
             dayTextView = itemView.findViewById(R.id.text_view_day);
             weekdayTextView = itemView.findViewById(R.id.text_view_weekday);
-            dateItemLayout = itemView.findViewById(R.id.date_item_layout);
+        }
+
+        void setTextColor(int color)
+        {
+            monthTextView.setTextColor(color);
+            dayTextView.setTextColor(color);
+            weekdayTextView.setTextColor(color);
         }
     }
 }

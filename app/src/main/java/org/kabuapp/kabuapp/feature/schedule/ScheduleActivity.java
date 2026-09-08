@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.snackbar.Snackbar;
 import org.kabuapp.kabuapp.R;
+import org.kabuapp.kabuapp.core.net.ApiException;
 import org.kabuapp.kabuapp.core.ui.Activity;
 import org.kabuapp.kabuapp.core.ui.ViewModelFactory;
 import org.kabuapp.kabuapp.core.util.DateTimeUtils;
@@ -34,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
@@ -159,12 +161,12 @@ public class ScheduleActivity extends Activity implements DateAdapter.OnDateSele
         {
             return;
         }
-        if (state.errorKind() == org.kabuapp.kabuapp.core.net.ApiException.Kind.UNAUTHORISED)
+        if (state.errorKind() == ApiException.Kind.UNAUTHORISED)
         {
             goToLogin();
             return;
         }
-        int message = state.errorKind() == org.kabuapp.kabuapp.core.net.ApiException.Kind.NETWORK
+        int message = state.errorKind() == ApiException.Kind.NETWORK
             ? R.string.error_network
             : R.string.error_server;
         Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).show();
@@ -213,7 +215,7 @@ public class ScheduleActivity extends Activity implements DateAdapter.OnDateSele
         List<LocalDate> dates = days.isEmpty() ? List.of(DateTimeUtils.getLocalDate()) : days;
         List<DateItem> items = new ArrayList<>();
         dates.forEach(date -> items.add(new DateItem(
-            date, date.format(monthFormatter), date.format(dayFormatter), date.format(weekdayFormatter), false)));
+            date, date.format(monthFormatter), date.format(dayFormatter), date.format(weekdayFormatter))));
         return items;
     }
 
@@ -271,10 +273,10 @@ public class ScheduleActivity extends Activity implements DateAdapter.OnDateSele
         }
         LocalTime now = DateTimeUtils.getLocalTime();
         Optional<LocalTime> next = viewModel.getCurrentLessons().stream()
-            .filter(lesson -> today.equals(lesson.getDate()))
-            .flatMap(lesson -> java.util.stream.Stream.of(
-                LessonPeriods.begin(lesson.getBegin()),
-                LessonPeriods.end(lesson.getEnd() == null ? lesson.getBegin() : lesson.getEnd()),
+            .filter(lesson -> today.equals(lesson.date()))
+            .flatMap(lesson -> Stream.of(
+                LessonPeriods.begin(lesson.begin()),
+                LessonPeriods.end(lesson.end()),
                 LessonPeriods.begin(LessonPeriods.FIRST_BREAK_LAST_PERIOD),
                 LessonPeriods.end(LessonPeriods.FIRST_BREAK_LAST_PERIOD)))
             .filter(Optional::isPresent)

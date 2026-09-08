@@ -1,5 +1,6 @@
 package org.kabuapp.kabuapp.feature.exam;
 
+import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,6 +35,9 @@ public class ExamAdapter extends ListAdapter<ExamRow, RecyclerView.ViewHolder>
             return oldItem instanceof ExamRow.TodayDividerRow && newItem instanceof ExamRow.TodayDividerRow;
         }
 
+        // Every implementation of ExamRow is a record, so equals() compares by value; lint only
+        // sees the sealed interface and cannot tell.
+        @SuppressLint("DiffUtilEquals")
         @Override
         public boolean areContentsTheSame(@NonNull ExamRow oldItem, @NonNull ExamRow newItem)
         {

@@ -17,9 +17,6 @@ import java.util.UUID;
 public interface ExamDao
 {
     @Query("SELECT * FROM exams WHERE userId = :userId")
-    List<Exam> get(UUID userId);
-
-    @Query("SELECT * FROM exams WHERE userId = :userId")
     LiveData<List<Exam>> observe(UUID userId);
 
     @TypeConverters({LocalDateConverter.class})

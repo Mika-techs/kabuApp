@@ -8,20 +8,14 @@ import androidx.room.Index;
 import androidx.room.TypeConverters;
 import java.time.LocalDate;
 import java.util.UUID;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
 import org.kabuapp.kabuapp.core.data.LocalDateConverter;
 import org.kabuapp.kabuapp.feature.auth.User;
 
 /**
- * One lesson slot. The primary key is natural - a user cannot have two different lessons in the
+ * One lesson block. The primary key is natural - a user cannot have two different lessons in the
  * same period of the same group on the same day - so a refresh upserts instead of needing the
  * user's rows deleted first.
  */
-@Getter
-@Setter
-@AllArgsConstructor
 @Entity(
     tableName = "schedule",
     primaryKeys = { "userId", "date", "begin", "group" },
@@ -32,26 +26,20 @@ import org.kabuapp.kabuapp.feature.auth.User;
         childColumns = "userId",
         onDelete = ForeignKey.CASCADE))
 @TypeConverters({LocalDateConverter.class})
-public class Lesson
+public record Lesson(
+    @NonNull @ColumnInfo(name = "userId") UUID userId,
+    @NonNull @ColumnInfo(name = "date") LocalDate date,
+    @ColumnInfo(name = "begin") short begin,
+    @ColumnInfo(name = "group") short group,
+    @ColumnInfo(name = "end") short end,
+    @ColumnInfo(name = "maxGroup") short maxGroup,
+    @ColumnInfo(name = "name") String name,
+    @ColumnInfo(name = "teacher") String teacher,
+    @ColumnInfo(name = "room") String room)
 {
-    @NonNull
-    @ColumnInfo(name = "userId")
-    private UUID userId;
-    @NonNull
-    @ColumnInfo(name = "date")
-    private LocalDate date;
-    @ColumnInfo(name = "begin")
-    private short begin;
-    @ColumnInfo(name = "group")
-    private short group;
-    @ColumnInfo(name = "end")
-    private Short end;
-    @ColumnInfo(name = "maxGroup")
-    private Short maxGroup;
-    @ColumnInfo(name = "name")
-    private String name;
-    @ColumnInfo(name = "teacher")
-    private String teacher;
-    @ColumnInfo(name = "room")
-    private String room;
+    /** Same block, extended to a later final period. */
+    public Lesson withEnd(short newEnd)
+    {
+        return new Lesson(userId, date, begin, group, newEnd, maxGroup, name, teacher, room);
+    }
 }

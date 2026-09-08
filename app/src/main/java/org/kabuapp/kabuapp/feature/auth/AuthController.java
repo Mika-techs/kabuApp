@@ -115,14 +115,12 @@ public class AuthController implements TokenSource
             User user = new User(UUID.randomUUID(), stateholder.getUsername(),
                 encrypt(stateholder.getPassword()), encrypt(stateholder.getToken()));
             db.userDao().insert(user);
-            activeUserStore.set(user.getId());
+            activeUserStore.set(user.id());
         }
         else
         {
-            existingUser.setUsername(stateholder.getUsername());
-            existingUser.setPassword(encrypt(stateholder.getPassword()));
-            existingUser.setToken(encrypt(stateholder.getToken()));
-            db.userDao().update(existingUser);
+            db.userDao().update(new User(existingUser.id(), stateholder.getUsername(),
+                encrypt(stateholder.getPassword()), encrypt(stateholder.getToken())));
         }
     }
 
@@ -132,10 +130,10 @@ public class AuthController implements TokenSource
         List<User> users = db.userDao().getAll();
         UUID activeId = activeUserStore.get();
         users.stream()
-            .filter(user -> user.getId().equals(activeId) && !user.getUsername().isEmpty())
+            .filter(user -> user.id().equals(activeId) && !user.username().isEmpty())
             .findAny()
             .ifPresentOrElse(this::load,
-                () -> users.stream().filter(user -> !user.getUsername().isEmpty()).findFirst().ifPresent(this::load));
+                () -> users.stream().filter(user -> !user.username().isEmpty()).findFirst().ifPresent(this::load));
         return activeUserStore.get();
     }
 
@@ -145,7 +143,7 @@ public class AuthController implements TokenSource
         {
             List<User> users = db.userDao().getAll();
             Map<String, UUID> userMap = new LinkedHashMap<>();
-            users.forEach(user -> userMap.put(user.getUsername(), user.getId()));
+            users.forEach(user -> userMap.put(user.username(), user.id()));
             stateholder.setUsers(userMap);
         });
     }
@@ -157,16 +155,16 @@ public class AuthController implements TokenSource
     public UUID getDbUserByNameAndLoad(String name)
     {
         UUID id = stateholder.getUsers().get(name);
-        db.userDao().getAll().stream().filter(user -> user.getId().equals(id)).findAny().ifPresent(this::load);
+        db.userDao().getAll().stream().filter(user -> user.id().equals(id)).findAny().ifPresent(this::load);
         return activeUserStore.get();
     }
 
     private void load(User user)
     {
-        stateholder.setUsername(user.getUsername());
-        stateholder.setPassword(decrypt(user.getPassword()));
-        stateholder.setToken(decrypt(user.getToken()));
-        activeUserStore.set(user.getId());
+        stateholder.setUsername(user.username());
+        stateholder.setPassword(decrypt(user.password()));
+        stateholder.setToken(decrypt(user.token()));
+        activeUserStore.set(user.id());
     }
 
     private byte[] encrypt(String value)

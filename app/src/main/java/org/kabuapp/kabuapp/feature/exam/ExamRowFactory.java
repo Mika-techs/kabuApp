@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Turns stored exams into list rows. Pure functions, so the divider placement is testable.
@@ -20,10 +21,10 @@ public final class ExamRowFactory
      */
     public static List<ExamRow> rowsFor(List<Exam> exams, LocalDate today)
     {
-        List<ExamRow.ExamEntryRow> entries = new ArrayList<>(exams.stream()
+        List<ExamRow.ExamEntryRow> entries = exams.stream()
             .map(ExamRowFactory::toRow)
             .sorted(Comparator.comparing(ExamRow.ExamEntryRow::begin))
-            .toList());
+            .collect(Collectors.toList());
 
         List<ExamRow> rows = new ArrayList<>(entries);
         insertTodayDivider(rows, entries, today);
@@ -32,8 +33,7 @@ public final class ExamRowFactory
 
     private static ExamRow.ExamEntryRow toRow(Exam exam)
     {
-        return new ExamRow.ExamEntryRow(
-            exam.getDate(), exam.getDuration() == null ? 1 : exam.getDuration(), exam.getInfo());
+        return new ExamRow.ExamEntryRow(exam.date(), exam.duration(), exam.info());
     }
 
     private static void insertTodayDivider(List<ExamRow> rows, List<ExamRow.ExamEntryRow> entries, LocalDate today)
