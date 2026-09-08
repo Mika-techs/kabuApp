@@ -23,6 +23,9 @@ public abstract class ApiClient
     public static final String PATH_AUTHENTICATE = "authenticate";
 
     private static final String BASE_URL = "https://digikabu.de/api/";
+    private static final int HTTP_BAD_REQUEST = 400;
+    private static final int HTTP_UNAUTHORISED = 401;
+    private static final int HTTP_NOT_FOUND = 404;
     private static final MediaType JSON = MediaType.get("application/json");
 
     private final JsonMapper jsonMapper = new JsonMapper();
@@ -100,11 +103,11 @@ public abstract class ApiClient
 
     private static ApiException.Kind kindOf(int statusCode)
     {
-        if (statusCode == 400)
+        if (statusCode == HTTP_BAD_REQUEST || statusCode == HTTP_NOT_FOUND)
         {
-            return ApiException.Kind.BAD_CREDENTIALS;
+            return ApiException.Kind.BAD_REQUEST;
         }
-        if (statusCode == 401)
+        if (statusCode == HTTP_UNAUTHORISED)
         {
             return ApiException.Kind.UNAUTHORISED;
         }

@@ -14,8 +14,14 @@ public class ApiException extends Exception
     {
         /** No usable connection, DNS failure, timeout. */
         NETWORK,
-        /** Credentials rejected (HTTP 400 on authenticate). */
+        /** Credentials rejected: HTTP 400 from the authenticate endpoint only. */
         BAD_CREDENTIALS,
+        /**
+         * The server rejected the request itself (HTTP 400 or 404 on a data endpoint). Seen in
+         * normal operation between school years, when digikabu.de answers
+         * "Zeitbereich ausserhalb des Schuljahres" for every date.
+         */
+        BAD_REQUEST,
         /** Token missing or rejected and re-authentication did not help (HTTP 401). */
         UNAUTHORISED,
         /** Anything else the server returned. */

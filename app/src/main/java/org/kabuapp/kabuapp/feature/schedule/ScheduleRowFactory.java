@@ -26,10 +26,13 @@ public final class ScheduleRowFactory
      */
     public static List<ScheduleRow> rowsFor(List<Lesson> lessons, LocalDate date, LocalDate today, LocalTime now)
     {
+        // Sorting has to happen after the break split, not before: a block split in two must take
+        // its place in the day by its own start period, not follow the half it came from.
         List<ScheduleRow.LessonRow> dayRows = lessons.stream()
             .filter(lesson -> date.equals(lesson.date()))
-            .sorted(Comparator.comparing(Lesson::begin).thenComparing(Lesson::group))
             .flatMap(lesson -> splitAtFirstBreak(toRow(lesson)).stream())
+            .sorted(Comparator.comparing(ScheduleRow.LessonRow::begin)
+                .thenComparing(ScheduleRow.LessonRow::group))
             .collect(Collectors.toList());
 
         List<ScheduleRow> rows = new ArrayList<>(dayRows);

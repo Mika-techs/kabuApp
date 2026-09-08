@@ -23,7 +23,20 @@ public class AuthApi extends ApiClient
         {
             throw new ApiException(ApiException.Kind.BAD_CREDENTIALS, "username or password is null");
         }
-        String response = post(PATH_AUTHENTICATE, new AuthRequest(username, password), String.class);
+        String response;
+        try
+        {
+            response = post(PATH_AUTHENTICATE, new AuthRequest(username, password), String.class);
+        }
+        catch (ApiException e)
+        {
+            // On this endpoint alone, a rejected request means rejected credentials.
+            if (e.getKind() == ApiException.Kind.BAD_REQUEST)
+            {
+                throw new ApiException(ApiException.Kind.BAD_CREDENTIALS, "credentials rejected", e);
+            }
+            throw e;
+        }
         if (response == null)
         {
             throw new ApiException(ApiException.Kind.SERVER, "authenticate returned an empty body");

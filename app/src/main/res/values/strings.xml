@@ -30,4 +30,5 @@
     <string name="error_network">No connection to digikabu.de</string>
     <string name="error_server">digikabu.de reported a problem</string>
     <string name="error_session_expired">Session expired, please log in again</string>
+    <string name="error_no_data_for_period">No timetable available for this period</string>
 </resources>

@@ -134,4 +134,35 @@ public class ScheduleRowFactoryTest
 
         assertEquals(List.of(MONDAY, MONDAY.plusDays(2)), days);
     }
+
+    @Test
+    public void splitHalvesTakeTheirOwnPlaceInTheDay()
+    {
+        // Two groups both booked across the long break: the day must read in time order,
+        // not group-by-group with each group's second half tucked behind its first.
+        List<ScheduleRow> rows = ScheduleRowFactory.rowsFor(
+            List.of(lesson((short) 2, (short) 3, (short) 1, (short) 2, "Sport A"),
+                    lesson((short) 2, (short) 3, (short) 2, (short) 2, "Sport B")),
+            MONDAY, MONDAY.minusDays(1), MORNING);
+
+        assertEquals(List.of("Sport A", "Sport B", "Sport A", "Sport B"), rows.stream()
+            .map(row -> ((ScheduleRow.LessonRow) row).name())
+            .toList());
+        assertEquals(List.of(2, 2, 3, 3), rows.stream()
+            .map(row -> (int) ((ScheduleRow.LessonRow) row).begin())
+            .toList());
+    }
+
+    @Test
+    public void aSplitBlockSortsAheadOfALaterLesson()
+    {
+        List<ScheduleRow> rows = ScheduleRowFactory.rowsFor(
+            List.of(lesson((short) 1, (short) 4, (short) 1, (short) 1, "Long"),
+                    lesson((short) 3, (short) 3, (short) 2, (short) 2, "Other")),
+            MONDAY, MONDAY.minusDays(1), MORNING);
+
+        assertEquals(List.of("Long", "Long", "Other"), rows.stream()
+            .map(row -> ((ScheduleRow.LessonRow) row).name())
+            .toList());
+    }
 }

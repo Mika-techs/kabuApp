@@ -27,4 +27,5 @@
     <string name="error_network">Keine Verbindung zu digikabu.de</string>
     <string name="error_server">digikabu.de meldet ein Problem</string>
     <string name="error_session_expired">Sitzung abgelaufen, bitte neu einloggen</string>
+    <string name="error_no_data_for_period">Für diesen Zeitraum liegt kein Plan vor</string>
 </resources>

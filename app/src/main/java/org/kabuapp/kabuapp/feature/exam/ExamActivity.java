@@ -62,8 +62,21 @@ public class ExamActivity extends Activity implements SwipeRefreshLayout.OnRefre
         {
             return;
         }
-        int message = state.errorKind() == ApiException.Kind.NETWORK ? R.string.error_network : R.string.error_server;
-        Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).show();
+        Snackbar.make(binding.getRoot(), messageFor(state.errorKind()), Snackbar.LENGTH_LONG).show();
+    }
+
+    /** A rejected request is normal between school years, so it gets its own message. */
+    private static int messageFor(ApiException.Kind kind)
+    {
+        switch (kind)
+        {
+            case NETWORK:
+                return R.string.error_network;
+            case BAD_REQUEST:
+                return R.string.error_no_data_for_period;
+            default:
+                return R.string.error_server;
+        }
     }
 
     @Override
