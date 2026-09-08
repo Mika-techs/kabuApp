@@ -11,7 +11,12 @@ import androidx.work.WorkManager;
 import com.google.android.material.color.DynamicColors;
 import lombok.Getter;
 import lombok.Setter;
-import org.kabuapp.kabuapp.core.net.DigikabuApiService;
+import okhttp3.OkHttpClient;
+import org.kabuapp.kabuapp.core.net.AuthInterceptor;
+import org.kabuapp.kabuapp.core.net.TokenAuthenticator;
+import org.kabuapp.kabuapp.feature.auth.AuthApi;
+import org.kabuapp.kabuapp.feature.exam.ExamApi;
+import org.kabuapp.kabuapp.feature.schedule.ScheduleApi;
 import org.kabuapp.kabuapp.feature.auth.AuthStateholder;
 import org.kabuapp.kabuapp.feature.exam.MemExams;
 import org.kabuapp.kabuapp.core.data.MemLifetime;
@@ -29,6 +34,7 @@ import org.kabuapp.kabuapp.feature.notification.ExamNotificationWorker;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleUpdateTask;
 import org.kabuapp.kabuapp.core.util.DateTimeUtils;
 
+import java.time.Duration;
 import java.util.Calendar;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,6 +44,11 @@ import java.util.concurrent.TimeUnit;
 @Setter
 public class KabuApp extends Application
 {
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(20);
+    /** Upper bound for a whole call including redirects and the 401 retry. */
+    private static final Duration CALL_TIMEOUT = Duration.ofSeconds(45);
+
     @Getter
     public static class GlobalTaskManager
     {
@@ -45,7 +56,6 @@ public class KabuApp extends Application
     }
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private DigikabuApiService digikabuApiService;
     private ScheduleController scheduleController;
     private LifetimeController lifetimeController;
     private ScheduleUpdateTask scheduleUpdateTask;
@@ -75,14 +85,30 @@ public class KabuApp extends Application
         schedule.setSelectedDate(DateTimeUtils.getLocalDate());
 
         db = AppDatabase.getDatabase(getApplicationContext());
-        digikabuApiService = new DigikabuApiService();
         scheduleMapper = new ScheduleMapper();
         examMapper = new ExamMapper();
 
+        // The authenticate call must not be intercepted, so it runs on a client without the
+        // auth stack. That also breaks the cycle: AuthController needs AuthApi, and the
+        // interceptor and authenticator need AuthController.
+        OkHttpClient baseClient = new OkHttpClient.Builder()
+            .connectTimeout(CONNECT_TIMEOUT)
+            .readTimeout(READ_TIMEOUT)
+            .callTimeout(CALL_TIMEOUT)
+            .build();
+        AuthApi authApi = new AuthApi(baseClient);
+        authController = new AuthController(new AuthStateholder(), db, authApi, executorService);
+
+        OkHttpClient authedClient = baseClient.newBuilder()
+            .addInterceptor(new AuthInterceptor(authController))
+            .authenticator(new TokenAuthenticator(authController))
+            .build();
+
         lifetimeController = new LifetimeController(db, executorService, new MemLifetime());
-        scheduleController = new ScheduleController(digikabuApiService, scheduleMapper, lifetimeController, schedule, db, executorService);
-        authController = new AuthController(new AuthStateholder(), db, digikabuApiService, executorService);
-        examController = new ExamController(new MemExams(), examMapper, lifetimeController, digikabuApiService, executorService, db);
+        scheduleController = new ScheduleController(
+            new ScheduleApi(authedClient), scheduleMapper, lifetimeController, schedule, db, executorService);
+        examController = new ExamController(
+            new MemExams(), examMapper, lifetimeController, new ExamApi(authedClient), executorService, db);
         sessionController = new SessionController(db, examController, lifetimeController, authController, scheduleController, executorService);
         scheduleUpdateTask = new ScheduleUpdateTask(null);
         settingsController = new SettingsController(executorService, db);

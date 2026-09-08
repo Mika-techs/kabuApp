@@ -24,4 +24,7 @@
     <string name="settings_isoDate">use ISO date Format on Exams</string>
     <string name="settings_notfication_next_day_exam">Nofification for Events at next day</string>
     <string name="nofification_exam_next_day_title">Event tomorrow</string>
+    <string name="error_network">No connection to digikabu.de</string>
+    <string name="error_server">digikabu.de reported a problem</string>
+    <string name="error_session_expired">Session expired, please log in again</string>
 </resources>

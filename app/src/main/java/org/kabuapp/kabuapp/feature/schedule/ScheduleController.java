@@ -3,35 +3,34 @@ package org.kabuapp.kabuapp.feature.schedule;
 import org.kabuapp.kabuapp.core.data.LifetimeController;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.kabuapp.kabuapp.core.net.DigikabuApiService;
-import org.kabuapp.kabuapp.core.net.UnauthorisedException;
+import org.kabuapp.kabuapp.core.net.ApiException;
 import org.kabuapp.kabuapp.feature.schedule.LessonResponse;
 import org.kabuapp.kabuapp.feature.schedule.MemSchedule;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleMapper;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
 import org.kabuapp.kabuapp.domain.DbType;
-import org.kabuapp.kabuapp.core.net.AuthCallback;
 import org.kabuapp.kabuapp.core.net.Callback;
 import org.kabuapp.kabuapp.core.util.DateTimeUtils;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @AllArgsConstructor
 public class ScheduleController
 {
-    private DigikabuApiService apiService;
+    /** The API is always asked for two weeks starting at the first day of the current week. */
+    private static final int SCHEDULE_DAYS = 14;
+
+    private ScheduleApi scheduleApi;
     private ScheduleMapper scheduleMapper;
     private LifetimeController lifetimeController;
     @Getter
@@ -39,18 +38,13 @@ public class ScheduleController
     private AppDatabase db;
     private ExecutorService executorService;
 
-    public void updateSchedule(String token, AuthCallback re, Callback ce, Object[] objects, Duration duration, UUID userId, boolean async,
-                               Consumer<String> setToken)
+    public void updateSchedule(Callback ce, Object[] objects, Duration duration, UUID userId, boolean async)
     {
         Future<?> future = executorService.submit(() ->
         {
             if (lifetimeController.isLifetimeExpired(duration, DbType.SCHEDULE))
             {
-                String newToken = updateSchedule(token, re, userId);
-                if (!Objects.equals(token, newToken))
-                {
-                    setToken.accept(newToken);
-                }
+                fetchSchedule(userId);
                 lifetimeController.updateLifetime(DbType.SCHEDULE);
                 lifetimeController.saveLifetimeToDb(userId);
                 if (ce != null)
@@ -76,41 +70,22 @@ public class ScheduleController
         }
     }
 
-    private String updateSchedule(String tokenIn, AuthCallback re, UUID userId)
+    /** Fetches two weeks from the start of the current week. A 401 is retried by the HTTP layer. */
+    private void fetchSchedule(UUID userId)
     {
         executorService.execute(() -> db.lessonDao().deletePerUser(userId));
-        String token = tokenIn;
         LocalDate begin = DateTimeUtils.getFirstDayOfWeek();
         try
         {
-            updateSchedule(begin, 14, token, userId);
-            return token;
+            List<LessonResponse> responses = scheduleApi.getSchedule(begin, SCHEDULE_DAYS);
+            schedule.getLessons().clear();
+            scheduleMapper.mapApiResToSchedule(responses, schedule);
+            executorService.execute(() -> db.lessonDao().insertAll(scheduleMapper.mapScheduleToDb(schedule, userId)));
         }
-        catch (UnauthorisedException ignored)
+        catch (ApiException e)
         {
-            token = re.renewToken();
+            Logger.getLogger("ScheduleController").log(Level.WARNING, "schedule refresh failed: " + e.getKind());
         }
-        try
-        {
-            updateSchedule(begin, 14, token, userId);
-            return token;
-        }
-        catch (UnauthorisedException ignored)
-        {
-        }
-        return token;
-    }
-
-    private void updateSchedule(LocalDate date, int days, String token, UUID userId) throws UnauthorisedException
-    {
-        List<LessonResponse> responses = apiService.getSchedule(token, date, days);
-        if (responses == null)
-        {
-            return;
-        }
-        schedule.getLessons().clear();
-        scheduleMapper.mapApiResToSchedule(responses, schedule);
-        executorService.execute(() -> db.lessonDao().insertAll(scheduleMapper.mapScheduleToDb(schedule, userId)));
     }
 
     public void getDbSchedule(UUID userId)

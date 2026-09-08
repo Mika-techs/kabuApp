@@ -23,6 +23,8 @@ import java.util.Map;
 
 public class ExamActivity extends Activity implements SwipeRefreshLayout.OnRefreshListener, Callback
 {
+    private static final Duration EXAM_MAX_AGE = Duration.ofMinutes(5);
+
     private SwipeRefreshLayout swipeRefreshLayout;
     private ExamUiGenerator uiGenerator;
     private ActivityExamBinding binding;
@@ -81,8 +83,7 @@ public class ExamActivity extends Activity implements SwipeRefreshLayout.OnRefre
     public void onRefresh()
     {
         swipeRefreshLayout.setRefreshing(false);
-        getExamController().updateExams(getAuthController().getToken(), getAuthController(), this,
-            new Object[1], Duration.ofMinutes(5), getAuthController().getId());
+        getExamController().updateExams(this, new Object[1], EXAM_MAX_AGE, getAuthController().getId());
     }
 
     public void callback(Object[] objects)

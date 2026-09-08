@@ -3,14 +3,12 @@ package org.kabuapp.kabuapp.feature.exam;
 import org.kabuapp.kabuapp.core.data.LifetimeController;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.kabuapp.kabuapp.core.net.DigikabuApiService;
-import org.kabuapp.kabuapp.core.net.UnauthorisedException;
+import org.kabuapp.kabuapp.core.net.ApiException;
 import org.kabuapp.kabuapp.feature.exam.ExamResponse;
 import org.kabuapp.kabuapp.feature.exam.MemExams;
 import org.kabuapp.kabuapp.feature.exam.ExamMapper;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
 import org.kabuapp.kabuapp.domain.DbType;
-import org.kabuapp.kabuapp.core.net.AuthCallback;
 import org.kabuapp.kabuapp.core.net.Callback;
 import org.kabuapp.kabuapp.core.util.DateTimeUtils;
 
@@ -20,11 +18,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 @AllArgsConstructor
 public class ExamController
 {
+    /** How many months of exams to fetch, starting with the current one. */
+    private static final short MONTHS_AHEAD = 3;
+
     /** August is summer holidays - the API never returns exams for it, so the month is skipped. */
     private static final int SUMMER_HOLIDAY_MONTH = 8;
 
@@ -32,17 +35,17 @@ public class ExamController
     private MemExams exams;
     private ExamMapper examMapper;
     private LifetimeController lifetimeController;
-    private DigikabuApiService apiService;
+    private ExamApi examApi;
     private ExecutorService executorService;
     private AppDatabase db;
 
-    public void updateExams(String token, AuthCallback re, Callback ce, Object[] objects, Duration duration, UUID userId)
+    public void updateExams(Callback ce, Object[] objects, Duration duration, UUID userId)
     {
         executorService.execute(() ->
         {
             if (lifetimeController.isLifetimeExpired(duration, DbType.EXAM))
             {
-                updateExams(token, re, userId);
+                fetchExams(userId);
                 if (ce != null)
                 {
                     ce.callback(objects);
@@ -57,29 +60,22 @@ public class ExamController
         });
     }
 
-    private void updateExams(String token, AuthCallback re, UUID userId)
+    /** A 401 is retried by the HTTP layer, so this runs once. */
+    private void fetchExams(UUID userId)
     {
         executorService.execute(() -> db.examDao().deletePerUser(userId));
         exams.getExams().clear();
-        LocalDate date = DateTimeUtils.getFirstDayOfMonth();
         try
         {
-            updateExams(date, token, userId, (short) 3);
+            fetchExams(DateTimeUtils.getFirstDayOfMonth(), userId, MONTHS_AHEAD);
         }
-        catch (UnauthorisedException ignored)
+        catch (ApiException e)
         {
-            token = re.renewToken();
-        }
-        try
-        {
-            updateExams(date, token, userId, (short) 3);
-        }
-        catch (UnauthorisedException ignored)
-        {
+            Logger.getLogger("ExamController").log(Level.WARNING, "exam refresh failed: " + e.getKind());
         }
     }
 
-    private void updateExams(LocalDate date, String token, UUID userId, short months) throws UnauthorisedException
+    private void fetchExams(LocalDate date, UUID userId, short months) throws ApiException
     {
         Set<LocalDate> datesToRemove = exams.getExams().keySet().stream()
                 .filter(key -> key.isBefore(date.withDayOfMonth(1)))
@@ -89,7 +85,7 @@ public class ExamController
         {
             if (date.plusMonths(i).getMonthValue() != SUMMER_HOLIDAY_MONTH)
             {
-                updateExams(date.plusMonths(i).getMonthValue(), token, userId);
+                fetchExams(date.plusMonths(i).getMonthValue(), userId);
             }
         }
     }
@@ -99,13 +95,9 @@ public class ExamController
         executorService.execute(() -> examMapper.mapDbToExams(db.examDao().get(userId), exams));
     }
 
-    private void updateExams(int month, String token, UUID userId) throws UnauthorisedException
+    private void fetchExams(int month, UUID userId) throws ApiException
     {
-        List<ExamResponse> responses = apiService.getExams(token, month);
-        if (responses == null)
-        {
-            return;
-        }
+        List<ExamResponse> responses = examApi.getExams(month);
         examMapper.mapApiToExams(responses, exams);
         executorService.execute(() -> db.examDao().insertAll(examMapper.mapExamsToDb(exams, userId)));
     }

@@ -8,8 +8,7 @@ annotation = "1.9.1"
 roomRuntimeAndroid = "2.8.4"
 roomCompiler = "2.8.4"
 
-apache-httpclient = "5.4.4"
-apache-httpcore = "5.4.1"
+okhttp = "4.12.0"
 
 metis = "1.0-SNAPSHOT"
 
@@ -30,8 +29,7 @@ constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayo
 annotation = { group = "androidx.annotation", name = "annotation", version.ref = "annotation" }
 room-runtime-android = { group = "androidx.room", name = "room-runtime-android", version.ref = "roomRuntimeAndroid" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
-apache-httpclient = { group = "org.apache.httpcomponents.client5", name = "httpclient5", version.ref = "apache-httpclient" }
-apache-httpcore = { group = "org.apache.httpcomponents.core5", name = "httpcore5", version.ref = "apache-httpcore" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 swiperrefeshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 metis = { group = "io.lilithtechs", name = "metis-json", version.ref = "metis" }

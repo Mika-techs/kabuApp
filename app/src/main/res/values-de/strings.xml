@@ -24,4 +24,7 @@
     <string name="settings_isoDate">nutze ISO Datum Format für Schulaufgaben</string>
     <string name="settings_notfication_next_day_exam">Benachrichtigung für Ergeignisse am nächten Tag</string>
     <string name="nofification_exam_next_day_title">Ergeigniss morgen</string>
+    <string name="error_network">Keine Verbindung zu digikabu.de</string>
+    <string name="error_server">digikabu.de meldet ein Problem</string>
+    <string name="error_session_expired">Sitzung abgelaufen, bitte neu einloggen</string>
 </resources>

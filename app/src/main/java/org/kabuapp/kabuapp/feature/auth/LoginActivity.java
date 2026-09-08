@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.EditText;
 import org.kabuapp.kabuapp.R;
 import org.kabuapp.kabuapp.databinding.ActivityLoginBinding;
+import org.kabuapp.kabuapp.core.net.ApiException;
 import org.kabuapp.kabuapp.core.net.Callback;
 import org.kabuapp.kabuapp.core.ui.Activity;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleActivity;
@@ -73,17 +74,40 @@ public class LoginActivity extends Activity implements Callback
         {
             Intent i = new Intent(this, ScheduleActivity.class);
             startActivity(i);
+            finish();
+            return;
         }
-        else
+        showError(args[0] instanceof ApiException.Kind ? (ApiException.Kind) args[0] : ApiException.Kind.BAD_CREDENTIALS);
+    }
+
+    private void showError(ApiException.Kind kind)
+    {
+        int message;
+        switch (kind)
+        {
+            case NETWORK:
+                message = R.string.error_network;
+                break;
+            case SERVER:
+                message = R.string.error_server;
+                break;
+            case UNAUTHORISED:
+                message = R.string.error_session_expired;
+                break;
+            default:
+                message = R.string.login_wrong;
+                break;
+        }
+        runOnUiThread(() ->
         {
             if (binding.username.isFocused())
             {
-                binding.username.setError(getString(R.string.login_wrong));
+                binding.username.setError(getString(message));
             }
             else
             {
-                binding.password.setError(getString(R.string.login_wrong));
+                binding.password.setError(getString(message));
             }
-        }
+        });
     }
 }

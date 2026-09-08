@@ -55,6 +55,10 @@ import static android.view.View.VISIBLE;
 
 public class ScheduleActivity extends Activity implements Callback, DateAdapter.OnDateSelectedListener, SwipeRefreshLayout.OnRefreshListener
 {
+    private static final Duration SCHEDULE_MAX_AGE = Duration.ofHours(2);
+    private static final Duration EXAM_MAX_AGE = Duration.ofHours(1);
+    /** Pull-to-refresh: short enough that the TTL never blocks the request. */
+    private static final Duration FORCE_REFRESH = Duration.ofSeconds(1);
     private static final int SWIPE_VELOCITY_THRESHOLD_DP = 69;
     private static final int SWIPE_THRESHOLD_DP = 69;
     private final DateTimeFormatter weekdayFormatter = DateTimeFormatter.ofPattern("EEE", Locale.getDefault());
@@ -78,8 +82,8 @@ public class ScheduleActivity extends Activity implements Callback, DateAdapter.
         ((KabuApp) getApplication()).getScheduleUpdateTask().setRef(this);
 
         getScheduleController().updateSchedule(
-            getAuthController().getToken(), getAuthController(), this, new Object[1], Duration.ofHours(2),
-            getAuthController().getId(), !getScheduleController().getSchedule().getLessons().isEmpty(), s -> getAuthController().setToken(s));
+            this, new Object[1], SCHEDULE_MAX_AGE, getAuthController().getId(),
+            !getScheduleController().getSchedule().getLessons().isEmpty());
 
         scheduleUiGenerator = new ScheduleUiGenerator();
 
@@ -106,7 +110,7 @@ public class ScheduleActivity extends Activity implements Callback, DateAdapter.
         barButtonRefListener(binding.barSettings, SettingsActivity.class);
         barButtonRefListener(binding.barExam, ExamActivity.class);
 
-        getExamController().updateExams(getAuthController().getToken(), getAuthController(), null, null, Duration.ofHours(1), getAuthController().getId());
+        getExamController().updateExams(null, null, EXAM_MAX_AGE, getAuthController().getId());
 
         swipeRefreshLayout.setOnRefreshListener(this);
 
@@ -144,8 +148,7 @@ public class ScheduleActivity extends Activity implements Callback, DateAdapter.
     @Override
     public void onRefresh()
     {
-        getScheduleController().updateSchedule(getAuthController().getToken(), getAuthController(), this,
-            new Object[1], Duration.ofSeconds(1), getAuthController().getId(), true, s -> getAuthController().setToken(s));
+        getScheduleController().updateSchedule(this, new Object[1], FORCE_REFRESH, getAuthController().getId(), true);
         swipeRefreshLayout.setRefreshing(false);
     }
 

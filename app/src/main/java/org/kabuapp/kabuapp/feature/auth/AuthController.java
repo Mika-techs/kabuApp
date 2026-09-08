@@ -1,13 +1,10 @@
 package org.kabuapp.kabuapp.feature.auth;
 
 import lombok.AllArgsConstructor;
-import org.kabuapp.kabuapp.core.net.DigikabuApiService;
-import org.kabuapp.kabuapp.core.net.BadRequestException;
-import org.kabuapp.kabuapp.feature.auth.AuthStateholder;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
-import org.kabuapp.kabuapp.feature.auth.User;
-import org.kabuapp.kabuapp.core.net.AuthCallback;
+import org.kabuapp.kabuapp.core.net.ApiException;
 import org.kabuapp.kabuapp.core.net.Callback;
+import org.kabuapp.kabuapp.core.net.TokenSource;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -19,32 +16,45 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @AllArgsConstructor
-public class AuthController implements AuthCallback
+public class AuthController implements TokenSource
 {
+    private static final Logger LOG = Logger.getLogger("AuthController");
+
     private AuthStateholder stateholder;
     private AppDatabase db;
-    private DigikabuApiService digikabuApiService;
+    private AuthApi authApi;
     private ExecutorService executorService;
 
-    public String renewToken()
+    @Override
+    public String currentToken()
     {
-        auth(null, null);
         return stateholder.getToken();
+    }
+
+    /**
+     * Called from the HTTP layer on a 401. Blocks on purpose: OkHttp expects the fresh
+     * credentials to be returned, not delivered through a callback.
+     */
+    @Override
+    public synchronized String reauthenticate()
+    {
+        try
+        {
+            String token = authApi.auth(stateholder.getUsername(), stateholder.getPassword());
+            stateholder.setToken(token);
+            executorService.execute(this::save);
+            return token;
+        }
+        catch (ApiException e)
+        {
+            LOG.log(Level.WARNING, "re-authentication failed: " + e.getKind());
+            return null;
+        }
     }
 
     public UUID getId()
     {
         return stateholder.getDbId();
-    }
-
-    public String getToken()
-    {
-        return stateholder.getToken();
-    }
-
-    public void setToken(String token)
-    {
-        stateholder.setToken(token);
     }
 
     public void removeUser(UUID id)
@@ -81,29 +91,29 @@ public class AuthController implements AuthCallback
         return false;
     }
 
+    /**
+     * Authenticates with the credentials currently held in the stateholder.
+     * On failure {@code args[0]} carries the {@link ApiException.Kind} so the caller can tell
+     * bad credentials apart from an unreachable server.
+     */
     public void auth(Callback callback, Object[] args)
     {
         try
         {
-            String token = digikabuApiService.auth(stateholder.getUsername(), stateholder.getPassword());
-            if (token == null)
-            {
-                Logger.getLogger("AuthController").log(Level.WARNING, "Token return is null");
-                return;
-            }
-            stateholder.setToken(token);
+            stateholder.setToken(authApi.auth(stateholder.getUsername(), stateholder.getPassword()));
             executorService.execute(this::save);
             if (callback != null)
             {
                 callback.callback(args);
             }
         }
-        catch (BadRequestException e)
+        catch (ApiException e)
         {
-            if (args != null && args.length > 0)
+            LOG.log(Level.WARNING, "authentication failed: " + e.getKind());
+            if (callback != null && args != null && args.length > 0)
             {
-                args[0] = false;
-                callback.callback((args));
+                args[0] = e.getKind();
+                callback.callback(args);
             }
         }
     }

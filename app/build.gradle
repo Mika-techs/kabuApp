@@ -53,8 +53,7 @@ dependencies {
     implementation libs.constraintlayout
     implementation libs.work.runtime
 
-    implementation libs.apache.httpclient
-    implementation libs.apache.httpcore
+    implementation libs.okhttp
 
     implementation libs.metis
 
