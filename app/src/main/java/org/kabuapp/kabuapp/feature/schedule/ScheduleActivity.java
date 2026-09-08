@@ -7,360 +7,310 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
-import android.view.ViewGroup;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import org.kabuapp.kabuapp.KabuApp;
+import com.google.android.material.snackbar.Snackbar;
 import org.kabuapp.kabuapp.R;
-import org.kabuapp.kabuapp.feature.schedule.MemLesson;
-import org.kabuapp.kabuapp.databinding.ActivityScheduleBinding;
-import org.kabuapp.kabuapp.feature.exam.ExamActivity;
 import org.kabuapp.kabuapp.core.ui.Activity;
-import org.kabuapp.kabuapp.core.net.Callback;
-import org.kabuapp.kabuapp.feature.auth.LoginActivity;
-import org.kabuapp.kabuapp.feature.settings.SettingsActivity;
+import org.kabuapp.kabuapp.core.ui.ViewModelFactory;
 import org.kabuapp.kabuapp.core.util.DateTimeUtils;
+import org.kabuapp.kabuapp.databinding.ActivityScheduleBinding;
+import org.kabuapp.kabuapp.domain.LessonPeriods;
+import org.kabuapp.kabuapp.domain.RefreshState;
+import org.kabuapp.kabuapp.feature.auth.LoginActivity;
+import org.kabuapp.kabuapp.feature.exam.ExamActivity;
+import org.kabuapp.kabuapp.feature.settings.SettingsActivity;
 
-import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
-
-public class ScheduleActivity extends Activity implements Callback, DateAdapter.OnDateSelectedListener, SwipeRefreshLayout.OnRefreshListener
+/**
+ * The schedule screen. Rows come from {@link ScheduleViewModel} through LiveData, so the previous
+ * eight-second polling loop that rebuilt the whole day is gone; the only timer left is the
+ * one-second countdown to the next lesson.
+ */
+public class ScheduleActivity extends Activity implements DateAdapter.OnDateSelectedListener, SwipeRefreshLayout.OnRefreshListener
 {
     private static final Duration SCHEDULE_MAX_AGE = Duration.ofHours(2);
-    private static final Duration EXAM_MAX_AGE = Duration.ofHours(1);
     /** Pull-to-refresh: short enough that the TTL never blocks the request. */
     private static final Duration FORCE_REFRESH = Duration.ofSeconds(1);
+    private static final long COUNTDOWN_INTERVAL_MS = 999;
+    private static final int SEARCH_DAYS = 15;
     private static final int SWIPE_VELOCITY_THRESHOLD_DP = 69;
     private static final int SWIPE_THRESHOLD_DP = 69;
-    private final DateTimeFormatter weekdayFormatter = DateTimeFormatter.ofPattern("EEE", Locale.getDefault());
+
     private final DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM", Locale.getDefault());
     private final DateTimeFormatter dayFormatter = DateTimeFormatter.ofPattern("dd");
+    private final DateTimeFormatter weekdayFormatter = DateTimeFormatter.ofPattern("EEE", Locale.getDefault());
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
-    private ScheduleUiGenerator scheduleUiGenerator;
-    private SwipeRefreshLayout swipeRefreshLayout;
-    private LinearLayoutManager layoutManager;
-    private GestureDetector gestureDetector;
-    private TextView durationTextView;
-    private List<DateItem> dateItems;
+
+    private ActivityScheduleBinding binding;
+    private ScheduleViewModel viewModel;
+    private ScheduleAdapter scheduleAdapter;
     private DateAdapter dateAdapter;
-    private Runnable timerRunnable;
+    private GestureDetector gestureDetector;
+    private Runnable countdownRunnable;
+    private List<LocalDate> schoolDays = List.of();
 
     @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        ((KabuApp) getApplication()).getScheduleUpdateTask().setRef(this);
 
-        getScheduleController().updateSchedule(
-            this, new Object[1], SCHEDULE_MAX_AGE, getAuthController().getId(),
-            !getScheduleController().getSchedule().getLessons().isEmpty());
-
-        scheduleUiGenerator = new ScheduleUiGenerator();
-
-        ActivityScheduleBinding binding = ActivityScheduleBinding.inflate(getLayoutInflater());
+        binding = ActivityScheduleBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout_schedule);
-        ScrollView scheduleScrollView = findViewById(R.id.schedule_scroll_view);
-
-        gestureDetector = new GestureDetector(this, new ScheduleGestureListener());
-
-        if (scheduleScrollView != null)
-        {
-            scheduleScrollView.setOnTouchListener((v, event) ->
-            {
-                if (gestureDetector.onTouchEvent(event))
-                {
-                    return true;
-                }
-                return v.onTouchEvent(event);
-            });
-        }
+        viewModel = new ViewModelProvider(this, new ViewModelFactory(getContainer())).get(ScheduleViewModel.class);
 
         barButtonRefListener(binding.barSettings, SettingsActivity.class);
         barButtonRefListener(binding.barExam, ExamActivity.class);
 
-        getExamController().updateExams(null, null, EXAM_MAX_AGE, getAuthController().getId());
+        setUpScheduleList();
+        setUpDateStrip();
+        observeViewModel();
 
-        swipeRefreshLayout.setOnRefreshListener(this);
+        binding.swipeRefreshLayoutSchedule.setOnRefreshListener(this);
+        viewModel.refresh(SCHEDULE_MAX_AGE);
+    }
 
-        RecyclerView dateRecyclerView = findViewById(R.id.recycler_view_date_selector);
-        layoutManager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
-        dateRecyclerView.setLayoutManager(layoutManager);
+    @SuppressLint("ClickableViewAccessibility")
+    private void setUpScheduleList()
+    {
+        scheduleAdapter = new ScheduleAdapter();
+        RecyclerView list = binding.recyclerViewSchedule;
+        list.setLayoutManager(new LinearLayoutManager(this));
+        list.setAdapter(scheduleAdapter);
 
-        dateItems = generateDateItems(
-            DateTimeUtils.getLocalDate().minusDays(DateTimeUtils.getLocalDate().getDayOfWeek().getValue() - 1), 14);
-
-        dateAdapter = new DateAdapter(this, dateItems, this);
-        dateRecyclerView.setAdapter(dateAdapter);
-        if (getScheduleController().getSchedule().getSelectedDate().isEqual(DateTimeUtils.getLocalDate()))
+        gestureDetector = new GestureDetector(this, new ScheduleGestureListener());
+        list.addOnItemTouchListener(new RecyclerView.SimpleOnItemTouchListener()
         {
-            getScheduleController().getSchedule().setSelectedDate(getDate(dateItems));
-        }
-
-        dateAdapter.setSelectedDate(getScheduleController().getSchedule().getSelectedDate());
-
-        dateRecyclerView.post(() ->
-        {
-            int selectedPosition = dateAdapter.getSelectedItemPosition();
-            if (selectedPosition != RecyclerView.NO_POSITION)
+            @Override
+            public boolean onInterceptTouchEvent(@NonNull RecyclerView view, @NonNull MotionEvent event)
             {
-                layoutManager.scrollToPositionWithOffset(selectedPosition, 0);
+                return gestureDetector.onTouchEvent(event);
             }
         });
-        durationTextView = findViewById(R.id.text_view_next_lesson_timer);
+    }
 
-        checkIfNoSchool();
-        updateScheduleLoop();
-        setupDurationNextLesson();
+    private void setUpDateStrip()
+    {
+        dateAdapter = new DateAdapter(this, new ArrayList<>(), this);
+        binding.recyclerViewDateSelector.setLayoutManager(
+            new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        binding.recyclerViewDateSelector.setAdapter(dateAdapter);
+    }
+
+    private void observeViewModel()
+    {
+        viewModel.getRows().observe(this, rows ->
+        {
+            scheduleAdapter.submitList(rows);
+            binding.noSchoolHint.setVisibility(schoolDays.isEmpty() ? VISIBLE : GONE);
+        });
+
+        viewModel.getSchoolDays().observe(this, days ->
+        {
+            schoolDays = days;
+            dateAdapter.setDates(toDateItems(days));
+            LocalDate selected = viewModel.getSelectedDate().getValue();
+            if (selected != null && !days.contains(selected) && !days.isEmpty())
+            {
+                viewModel.select(nextSchoolDayFrom(selected));
+            }
+            else if (selected != null)
+            {
+                dateAdapter.setSelectedDate(selected);
+            }
+            binding.noSchoolHint.setVisibility(days.isEmpty() ? VISIBLE : GONE);
+        });
+
+        viewModel.getSelectedDate().observe(this, date ->
+        {
+            dateAdapter.setSelectedDate(date);
+            scrollDateStripToSelection();
+        });
+
+        viewModel.getRefreshState().observe(this, this::onRefreshState);
+    }
+
+    /**
+     * The spinner is cleared from the refresh state rather than immediately after firing the
+     * request, so it now reflects the request actually finishing - or failing.
+     */
+    private void onRefreshState(RefreshState state)
+    {
+        binding.swipeRefreshLayoutSchedule.setRefreshing(state.status() == RefreshState.Status.LOADING);
+        if (state.status() != RefreshState.Status.ERROR)
+        {
+            return;
+        }
+        if (state.errorKind() == org.kabuapp.kabuapp.core.net.ApiException.Kind.UNAUTHORISED)
+        {
+            goToLogin();
+            return;
+        }
+        int message = state.errorKind() == org.kabuapp.kabuapp.core.net.ApiException.Kind.NETWORK
+            ? R.string.error_network
+            : R.string.error_server;
+        Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).show();
     }
 
     @Override
     public void onRefresh()
     {
-        getScheduleController().updateSchedule(this, new Object[1], FORCE_REFRESH, getAuthController().getId(), true);
-        swipeRefreshLayout.setRefreshing(false);
-    }
-
-    public void callback(Object[] objects)
-    {
-        updateSchedule();
+        viewModel.refresh(FORCE_REFRESH);
     }
 
     @Override
     protected void onStart()
     {
         super.onStart();
-
         if (!getAuthController().isInitialized())
         {
-            var i = new Intent(this, LoginActivity.class);
-            startActivity(i);
-            finish();
+            goToLogin();
+            return;
         }
-
+        startCountdown();
         getDelegate().onStart();
     }
 
-    private void updateSchedule()
+    @Override
+    protected void onStop()
     {
-        ViewGroup linearSchedule = findViewById(R.id.linear_schedule);
-        LocalDate selectedDate = getScheduleController().getSchedule().getSelectedDate();
-        Map<LocalDate, List<MemLesson>> lessonRef = getScheduleController().getSchedule().getLessons();
-        if (lessonRef == null || linearSchedule == null || selectedDate == null)
-        {
-            return;
-        }
-        Map<LocalDate, List<MemLesson>> lessons = lessonRef.entrySet()
-            .stream()
-            .sorted(Map.Entry.comparingByKey())
-            .collect(Collectors.toMap(
-                Map.Entry::getKey,
-                entry -> entry.getValue().stream()
-                    .sorted(Comparator.comparing(MemLesson::getBegin)
-                        .thenComparing(MemLesson::getGroup))
-                    .collect(Collectors.toList()),
-                (e1, e2) -> e1,
-                LinkedHashMap::new
-            ));
-        List<DateItem> dateItems = new ArrayList<>();
-        lessons.keySet().forEach(date ->
-        {
-            if (dateAdapter.getDateList().stream().noneMatch(dateItem -> dateItem.getDate().isEqual(date)))
-            {
-                dateItems.add(generateDateItems(date, 1).get(0));
-            }
-        });
-        if (lessons.containsKey(selectedDate))
-        {
-            splitFirstBreakLessons(lessons.get(selectedDate));
-            if (DateTimeUtils.getLocalDate().equals(selectedDate))
-            {
-                List<MemLesson> currentLessons = lessons.get(DateTimeUtils.getLocalDate());
-                if (currentLessons != null && currentLessons.stream().noneMatch(this::isInLesson))
-                {
-                    addNullLessonAtCurrentTime(currentLessons);
-                }
-            }
-        }
-        runOnUiThread(() ->
-        {
-            linearSchedule.removeAllViews();
-            if (lessons.containsKey(selectedDate))
-            {
-                lessons.get(selectedDate).forEach(lesson ->
-                    scheduleUiGenerator.addLessonElement(this, linearSchedule, lesson));
-            }
-            dateItems.forEach(dateAdapter::addDate);
-        });
+        super.onStop();
+        stopCountdown();
     }
 
-    private void addNullLessonAtCurrentTime(List<MemLesson> lessons)
+    private void goToLogin()
     {
-        int i = -1;
-        for (int k = 0; k < lessons.size(); k++)
-        {
-            if (scheduleUiGenerator.endToLocaleTime(lessons.get(k).getEnd()).isBefore(DateTimeUtils.getLocalTime()))
-            {
-                i = k;
-            }
-            else
-            {
-                break;
-            }
-        }
-        if (i != -1 && i != lessons.size() - 1)
-        {
-            lessons.add(i + 1, new MemLesson((short) -1, (short) -1, null, (short) -1, (short) -1, null, null, null, null));
-        }
-    }
-
-    private void splitFirstBreakLessons(List<MemLesson> lessons)
-    {
-        Function<MemLesson, Boolean> isOverBreak = l -> l.getBegin() <= 2 && l.getEnd() >= 3;
-        List<MemLesson> overBreakLessons = lessons.stream().filter(isOverBreak::apply).collect(Collectors.toList());
-        if (overBreakLessons.isEmpty())
-        {
-            return;
-        }
-        int startIndex = lessons.indexOf(overBreakLessons.get(0));
-        int size = overBreakLessons.size();
-        for (int i = 0; i < size; i++)
-        {
-            MemLesson l = overBreakLessons.get(i);
-            MemLesson fl = new MemLesson(
-                l.getBegin(), (short) 2, l.getDate(), l.getGroup(), l.getMaxGroup(), l.getName(), l.getTeacher(), l.getRoom(), UUID.randomUUID());
-            MemLesson sl = new MemLesson(
-                (short) 3, l.getEnd(), l.getDate(), l.getGroup(), l.getMaxGroup(), l.getName(), l.getTeacher(), l.getRoom(), UUID.randomUUID());
-            lessons.add(startIndex + size + i - 1 + l.getGroup(), sl);
-            lessons.add(startIndex + size + i - 1 + l.getGroup(), fl);
-            lessons.remove(l);
-        }
-
-    }
-
-    private boolean isInLesson(MemLesson lesson)
-    {
-        return scheduleUiGenerator.beginToLocaleTime(lesson.getBegin()) == null
-            || (!DateTimeUtils.getLocalTime().isBefore(scheduleUiGenerator.beginToLocaleTime(lesson.getBegin()))
-            && !DateTimeUtils.getLocalTime().isAfter(scheduleUiGenerator.endToLocaleTime(lesson.getEnd())));
-    }
-
-    private void updateScheduleLoop()
-    {
-        getIoExecutor().execute(() ->
-        {
-            while (!this.isDestroyed())
-            {
-                updateSchedule();
-                try
-                {
-                    Thread.sleep(8000);
-                }
-                catch (InterruptedException ignored)
-                {
-                    return;
-                }
-            }
-        });
-    }
-
-    private List<DateItem> generateDateItems(LocalDate startDate, int numberOfDays)
-    {
-        List<DateItem> items = new ArrayList<>();
-
-        for (int i = 0; i < numberOfDays; i++)
-        {
-            LocalDate currentDate = startDate.plusDays(i);
-            if (!getScheduleController().isSchool(currentDate))
-            {
-                continue;
-            }
-            items.add(new DateItem(
-                currentDate, currentDate.format(monthFormatter), currentDate.format(dayFormatter), currentDate.format(weekdayFormatter), false));
-        }
-        if (items.isEmpty())
-        {
-            LocalDate currentDate = DateTimeUtils.getLocalDate();
-            items.add(new DateItem(
-                currentDate, currentDate.format(monthFormatter), currentDate.format(dayFormatter), currentDate.format(weekdayFormatter), false));
-        }
-        return items;
+        startActivity(new Intent(this, LoginActivity.class));
+        finish();
     }
 
     @Override
     public void onDateSelected(LocalDate date)
     {
-        getScheduleController().getSchedule().setSelectedDate(date);
-        timerHandler.removeCallbacks(timerRunnable);
-        timerHandler.postDelayed(timerRunnable, 0);
-        updateSchedule();
+        viewModel.select(date);
     }
 
-    private void changeSelectedDate(LocalDate newDate)
+    private List<DateItem> toDateItems(List<LocalDate> days)
     {
-        int newPosition = IntStream.range(0, dateItems.size()).filter(i ->
-            dateItems.get(i).getDate().equals(newDate)).findFirst().orElse(-1);
-
-        if (newPosition != -1)
-        {
-            getScheduleController().getSchedule().setSelectedDate(newDate);
-            dateAdapter.setSelectedDate(newDate);
-            updateSchedule();
-
-        }
+        List<LocalDate> dates = days.isEmpty() ? List.of(DateTimeUtils.getLocalDate()) : days;
+        List<DateItem> items = new ArrayList<>();
+        dates.forEach(date -> items.add(new DateItem(
+            date, date.format(monthFormatter), date.format(dayFormatter), date.format(weekdayFormatter), false)));
+        return items;
     }
 
-    private LocalDate getDate(List<DateItem> dateItems)
+    private void scrollDateStripToSelection()
     {
-        LocalDate date = DateTimeUtils.getLocalDate();
-        if (date.getDayOfWeek().equals(DayOfWeek.SUNDAY) && !getScheduleController().isSchool(date))
+        binding.recyclerViewDateSelector.post(() ->
         {
-            date = date.plusDays(1);
-        }
-        LocalDate finalDate = date;
-        if (dateItems.stream().noneMatch(item -> item.getDate().equals(finalDate)) && !dateItems.isEmpty())
-        {
-            for (LocalDate dateItem : dateItems.stream().map(DateItem::getDate).collect(Collectors.toList()))
+            int position = dateAdapter.getSelectedItemPosition();
+            if (position != RecyclerView.NO_POSITION)
             {
-                if (dateItem.isAfter(date))
-                {
-                    return dateItem;
-                }
+                ((LinearLayoutManager) binding.recyclerViewDateSelector.getLayoutManager())
+                    .scrollToPositionWithOffset(position, 0);
             }
-            return dateItems.get(dateItems.size() - 1).getDate();
+        });
+    }
+
+    /** Next day that has lessons, falling back to the last known school day. */
+    private LocalDate nextSchoolDayFrom(LocalDate from)
+    {
+        return schoolDays.stream()
+            .filter(day -> !day.isBefore(from))
+            .findFirst()
+            .orElse(schoolDays.get(schoolDays.size() - 1));
+    }
+
+    private void startCountdown()
+    {
+        stopCountdown();
+        countdownRunnable = () ->
+        {
+            updateCountdown();
+            viewModel.onClockTick();
+            timerHandler.postDelayed(countdownRunnable, COUNTDOWN_INTERVAL_MS);
+        };
+        timerHandler.post(countdownRunnable);
+    }
+
+    private void stopCountdown()
+    {
+        if (countdownRunnable != null)
+        {
+            timerHandler.removeCallbacks(countdownRunnable);
         }
-        return date;
+    }
+
+    /** Time until the next period boundary today, hidden unless today is the selected day. */
+    private void updateCountdown()
+    {
+        TextView countdown = binding.textViewNextLessonTimer;
+        LocalDate today = DateTimeUtils.getLocalDate();
+        if (!today.equals(viewModel.getSelectedDate().getValue()))
+        {
+            countdown.setVisibility(GONE);
+            return;
+        }
+        LocalTime now = DateTimeUtils.getLocalTime();
+        Optional<LocalTime> next = viewModel.getCurrentLessons().stream()
+            .filter(lesson -> today.equals(lesson.getDate()))
+            .flatMap(lesson -> java.util.stream.Stream.of(
+                LessonPeriods.begin(lesson.getBegin()),
+                LessonPeriods.end(lesson.getEnd() == null ? lesson.getBegin() : lesson.getEnd()),
+                LessonPeriods.begin(LessonPeriods.FIRST_BREAK_LAST_PERIOD),
+                LessonPeriods.end(LessonPeriods.FIRST_BREAK_LAST_PERIOD)))
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .distinct()
+            .sorted()
+            .filter(time -> time.isAfter(now))
+            .findFirst();
+
+        if (next.isEmpty())
+        {
+            countdown.setVisibility(GONE);
+            return;
+        }
+        long seconds = Math.max(0, ChronoUnit.SECONDS.between(now, next.get()));
+        countdown.setText(String.format(Locale.getDefault(), "%02d:%02d:%02d",
+            seconds / 3600, (seconds % 3600) / 60, seconds % 60));
+        countdown.setVisibility(VISIBLE);
+    }
+
+    private void changeSelectedDateBy(int direction)
+    {
+        LocalDate current = viewModel.getSelectedDate().getValue();
+        if (current == null)
+        {
+            return;
+        }
+        for (int days = 1; days < SEARCH_DAYS; days++)
+        {
+            LocalDate candidate = current.plusDays((long) direction * days);
+            if (schoolDays.contains(candidate))
+            {
+                viewModel.select(candidate);
+                return;
+            }
+        }
     }
 
     private class ScheduleGestureListener extends GestureDetector.SimpleOnGestureListener
@@ -368,143 +318,22 @@ public class ScheduleActivity extends Activity implements Callback, DateAdapter.
         @Override
         public boolean onFling(MotionEvent e1, @NonNull MotionEvent e2, float velocityX, float velocityY)
         {
-            boolean result = false;
-            try
+            if (e1 == null)
             {
-                if (e1 == null)
-                {
-                    return false;
-                }
-
-                float diffY = e2.getY() - e1.getY();
-                float diffX = e2.getX() - e1.getX();
-
-                float density = getResources().getDisplayMetrics().density;
-                int swipeThresholdPx = (int) (SWIPE_THRESHOLD_DP * density);
-                int swipeVelocityThresholdPx = (int) (SWIPE_VELOCITY_THRESHOLD_DP * density);
-
-                if (Math.abs(diffX) > Math.abs(diffY)
-                    && Math.abs(diffX) > swipeThresholdPx
-                    && Math.abs(velocityX) > swipeVelocityThresholdPx)
-                {
-                    if (diffX > 0)
-                    {
-                        onSwipeRight();
-                    }
-                    else
-                    {
-                        onSwipeLeft();
-                    }
-                    result = true;
-                }
+                return false;
             }
-            catch (Exception exception)
+            float diffY = e2.getY() - e1.getY();
+            float diffX = e2.getX() - e1.getX();
+            float density = getResources().getDisplayMetrics().density;
+
+            if (Math.abs(diffX) <= Math.abs(diffY)
+                || Math.abs(diffX) <= SWIPE_THRESHOLD_DP * density
+                || Math.abs(velocityX) <= SWIPE_VELOCITY_THRESHOLD_DP * density)
             {
-                Logger.getLogger("GestureListener").log(Level.SEVERE, "Error in onFling", exception);
+                return false;
             }
-            return result;
-        }
-    }
-
-    private void onSwipeRight()
-    {
-        int days = 1;
-        for (; days < 15; days++)
-        {
-            if (getScheduleController().isSchool(getScheduleController().getSchedule().getSelectedDate().minusDays(days)))
-            {
-                break;
-            }
-        }
-        changeSelectedDate(getScheduleController().getSchedule().getSelectedDate().minusDays(days));
-    }
-
-    private void onSwipeLeft()
-    {
-        int days = 1;
-        for (; days < 15; days++)
-        {
-            if (getScheduleController().isSchool(getScheduleController().getSchedule().getSelectedDate().plusDays(days)))
-            {
-                break;
-            }
-        }
-        changeSelectedDate(getScheduleController().getSchedule().getSelectedDate().plusDays(days));
-    }
-
-    private void checkIfNoSchool()
-    {
-        boolean isSchool = getScheduleController().getSchedule().getLessons().values().stream().mapToLong(Collection::size).sum() > 0;
-        if (!isSchool)
-        {
-            findViewById(R.id.noSchoolHint).setVisibility(VISIBLE);
-        }
-        else
-        {
-            findViewById(R.id.noSchoolHint).setVisibility(GONE);
-        }
-    }
-
-    private void setupDurationNextLesson()
-    {
-        boolean isSchool = getScheduleController().getSchedule().getLessons().values().stream().mapToLong(Collection::size).sum() > 0;
-
-        if (!isSchool)
-        {
-            durationTextView.setVisibility(GONE);
-            return;
-        }
-        Supplier<Boolean> isCurrentDaySelected = () -> dateItems.stream().anyMatch(di -> di.isSelected() && di.getDate().equals(DateTimeUtils.getLocalDate()));
-
-        AtomicReference<LocalTime> localTime = new AtomicReference<>();
-        Supplier<Stream<LocalTime>> getLessons = () -> getScheduleController().getSchedule().getLessons()
-            .getOrDefault(DateTimeUtils.getLocalDate(), List.of())
-            .stream()
-            .flatMap(l -> Stream.of(scheduleUiGenerator.beginToLocaleTime(l.getBegin()), scheduleUiGenerator.endToLocaleTime(l.getEnd()),
-                scheduleUiGenerator.beginToLocaleTime((short) 2), scheduleUiGenerator.endToLocaleTime((short) 2)))
-            .distinct()
-            .sorted();
-        Function<Stream<LocalTime>, Optional<LocalTime>> getNextLesson = lessons -> lessons
-            .filter(event -> event.isAfter(localTime.get()))
-            .findFirst();
-        Function<Optional<LocalTime>, Optional<String>> formatTime = ot -> ot.map(targetTime ->
-        {
-            long seconds = ChronoUnit.SECONDS.between(localTime.get(), targetTime);
-            if (seconds <= 0)
-            {
-                return "00:00:00";
-            }
-            return String.format("%02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60);
-        });
-        Supplier<Optional<String>> getTime = () -> formatTime.apply(getNextLesson.apply(getLessons.get()));
-
-        timerRunnable = () ->
-        {
-            if (isCurrentDaySelected.get())
-            {
-                localTime.set(DateTimeUtils.getLocalTime());
-                getTime.get().ifPresentOrElse(s ->
-                {
-                    durationTextView.setText(s);
-                    durationTextView.setVisibility(VISIBLE);
-                }, () -> durationTextView.setVisibility(GONE));
-            }
-            else
-            {
-                durationTextView.setVisibility(GONE);
-            }
-            timerHandler.postDelayed(timerRunnable, 999);
-        };
-        timerHandler.postDelayed(timerRunnable, 0);
-    }
-
-    @Override
-    protected void onDestroy()
-    {
-        super.onDestroy();
-        if (timerHandler != null)
-        {
-            timerHandler.removeCallbacks(timerRunnable);
+            changeSelectedDateBy(diffX > 0 ? -1 : 1);
+            return true;
         }
     }
 }

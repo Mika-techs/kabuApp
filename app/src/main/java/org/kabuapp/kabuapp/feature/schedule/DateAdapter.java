@@ -144,6 +144,15 @@ public class DateAdapter extends RecyclerView.Adapter<DateAdapter.DateViewHolder
         }
     }
 
+    /** Replaces the strip's contents; the dates come from the observed lesson rows. */
+    @SuppressLint("NotifyDataSetChanged")
+    public void setDates(List<DateItem> dates)
+    {
+        this.dateList = dates;
+        this.selectedItemPosition = RecyclerView.NO_POSITION;
+        notifyDataSetChanged();
+    }
+
     public void addDate(DateItem dateItem)
     {
         if (dateList.stream().noneMatch(date -> date.getDate().equals(dateItem.getDate())))

@@ -10,6 +10,12 @@ roomCompiler = "2.8.4"
 
 okhttp = "4.12.0"
 
+lifecycle = "2.10.0"
+
+junit = "4.13.2"
+robolectric = "4.16"
+coreTesting = "2.2.0"
+
 metis = "1.0-SNAPSHOT"
 
 material = "1.13.0"
@@ -30,6 +36,11 @@ annotation = { group = "androidx.annotation", name = "annotation", version.ref =
 room-runtime-android = { group = "androidx.room", name = "room-runtime-android", version.ref = "roomRuntimeAndroid" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "lifecycle" }
+lifecycle-livedata = { group = "androidx.lifecycle", name = "lifecycle-livedata", version.ref = "lifecycle" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "coreTesting" }
 swiperrefeshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 metis = { group = "io.lilithtechs", name = "metis-json", version.ref = "metis" }

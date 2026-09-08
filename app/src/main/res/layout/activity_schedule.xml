@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:elevation="0dp"
-    tools:context=".schedule.ScheduleActivity">
+    tools:context=".feature.schedule.ScheduleActivity">
 
     <TextView
         android:id="@+id/noSchoolHint"
@@ -61,27 +61,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/recycler_view_date_selector">
 
-        <ScrollView
-            android:id="@+id/schedule_scroll_view"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view_schedule"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            app:layout_constraintBottom_toTopOf="@+id/constraintLayout"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.402"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/recycler_view_date_selector"
-            tools:ignore="SpeakableTextPresentCheck">
-
-            <LinearLayout
-                android:id="@+id/linear_schedule"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginEnd="8dp"
-                android:layout_marginBottom="64dp"
-                android:orientation="vertical" />
-        </ScrollView>
+            android:clipToPadding="false"
+            android:paddingStart="8dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="64dp"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/layout_lesson_item" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout

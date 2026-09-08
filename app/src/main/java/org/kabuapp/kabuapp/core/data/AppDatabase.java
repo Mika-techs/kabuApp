@@ -18,7 +18,7 @@ import org.kabuapp.kabuapp.core.data.Lifetime;
 import org.kabuapp.kabuapp.feature.settings.Settings;
 import org.kabuapp.kabuapp.feature.auth.User;
 
-@Database(entities = { User.class, Lesson.class, Lifetime.class, Exam.class, Settings.class }, version = 3)
+@Database(entities = { User.class, Lesson.class, Lifetime.class, Exam.class, Settings.class }, version = 4)
 @TypeConverters({ LocalDateConverter.class, LocalDateTimeConverter.class, DbTypeConverter.class })
 public abstract class AppDatabase extends RoomDatabase
 {

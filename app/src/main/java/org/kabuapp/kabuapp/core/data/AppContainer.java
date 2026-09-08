@@ -13,10 +13,9 @@ import org.kabuapp.kabuapp.feature.exam.ExamApi;
 import org.kabuapp.kabuapp.feature.exam.ExamController;
 import org.kabuapp.kabuapp.feature.exam.ExamMapper;
 import org.kabuapp.kabuapp.feature.exam.MemExams;
-import org.kabuapp.kabuapp.feature.schedule.MemSchedule;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleApi;
-import org.kabuapp.kabuapp.feature.schedule.ScheduleController;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleMapper;
+import org.kabuapp.kabuapp.feature.schedule.ScheduleRepository;
 import org.kabuapp.kabuapp.feature.settings.SettingsController;
 
 import java.time.Duration;
@@ -45,10 +44,10 @@ public class AppContainer
     private final ExecutorService ioExecutor = Executors.newFixedThreadPool(IO_THREADS);
 
     private final AppDatabase db;
-    private final MemSchedule schedule;
+    private final ActiveUserStore activeUserStore;
     private final LifetimeController lifetimeController;
     private final AuthController authController;
-    private final ScheduleController scheduleController;
+    private final ScheduleRepository scheduleRepository;
     private final ExamController examController;
     private final SessionController sessionController;
     private final SettingsController settingsController;
@@ -56,7 +55,7 @@ public class AppContainer
     public AppContainer(Context context)
     {
         db = AppDatabase.getDatabase(context.getApplicationContext());
-        schedule = new MemSchedule();
+        activeUserStore = new ActiveUserStore(context);
 
         // The authenticate call must not be intercepted, so it runs on a client without the auth
         // stack. That also breaks the cycle: AuthController needs AuthApi, while the interceptor
@@ -68,7 +67,7 @@ public class AppContainer
             .build();
 
         authController = new AuthController(
-            new AuthStateholder(), db, new AuthApi(baseClient), dbExecutor, ioExecutor, new CredentialCipher());
+            new AuthStateholder(), db, new AuthApi(baseClient), activeUserStore, dbExecutor, ioExecutor, new CredentialCipher());
 
         OkHttpClient authedClient = baseClient.newBuilder()
             .addInterceptor(new AuthInterceptor(authController))
@@ -76,12 +75,12 @@ public class AppContainer
             .build();
 
         lifetimeController = new LifetimeController(db, dbExecutor);
-        scheduleController = new ScheduleController(
-            new ScheduleApi(authedClient), new ScheduleMapper(), lifetimeController, schedule, db, dbExecutor, ioExecutor);
+        scheduleRepository = new ScheduleRepository(
+            new ScheduleApi(authedClient), new ScheduleMapper(), lifetimeController, db, dbExecutor, ioExecutor);
         examController = new ExamController(
             new MemExams(), new ExamMapper(), lifetimeController, new ExamApi(authedClient), dbExecutor, ioExecutor, db);
         sessionController = new SessionController(
-            db, examController, lifetimeController, authController, scheduleController, dbExecutor);
+            db, examController, lifetimeController, authController, scheduleRepository, dbExecutor);
         settingsController = new SettingsController(dbExecutor, db);
     }
 }

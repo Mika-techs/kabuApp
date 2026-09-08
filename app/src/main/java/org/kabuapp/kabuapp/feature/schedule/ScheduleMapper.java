@@ -1,103 +1,97 @@
 package org.kabuapp.kabuapp.feature.schedule;
 
-import org.kabuapp.kabuapp.feature.schedule.LessonResponse;
-import org.kabuapp.kabuapp.feature.schedule.MemLesson;
-import org.kabuapp.kabuapp.feature.schedule.MemSchedule;
-import org.kabuapp.kabuapp.feature.schedule.Lesson;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Converts API responses into stored lessons. The API returns one entry per single period, so
+ * consecutive identical periods are merged into one block here.
+ */
 public class ScheduleMapper
 {
-    public void mapApiResToSchedule(List<LessonResponse> lessonResponses, MemSchedule schedule)
+    private static final int DAY_END = 2;
+    private static final int MONTH_START = 3;
+    private static final int MONTH_END = 5;
+    private static final int YEAR_START = 6;
+    private static final int GROUP_INDEX = 0;
+    private static final int MAX_GROUP_INDEX = 2;
+
+    /** Parsed but not yet merged; keyed so that merging only compares periods of the same block. */
+    private record Key(LocalDate date, short group, String name, String teacher, String room, short maxGroup)
     {
-        if (lessonResponses == null)
-        {
-            return;
-        }
-
-        Map<LocalDate, List<MemLesson>> lessons = schedule.getLessons();
-
-        lessonResponses.forEach(lessonResponse ->
-        {
-            MemLesson lesson = new MemLesson(
-                    (short) lessonResponse.getAnfStd(),
-                    (short) lessonResponse.getEndStd(),
-                    LocalDate.of(
-                            Integer.parseInt(lessonResponse.getDatum().substring(6)),
-                            Integer.parseInt(lessonResponse.getDatum().substring(3, 5)),
-                            Integer.parseInt(lessonResponse.getDatum().substring(0, 2))),
-                    (short) Character.getNumericValue(lessonResponse.getGruppe().charAt(0)),
-                    (short) Character.getNumericValue(lessonResponse.getGruppe().charAt(2)),
-                    lessonResponse.getUFachBez(),
-                    lessonResponse.getLehrer(),
-                    lessonResponse.getRaumLongtext(),
-                    null);
-            if (!lessons.containsKey(lesson.getDate()))
-            {
-                lessons.put(lesson.getDate(), new ArrayList<>());
-            }
-            List<MemLesson> dateLessons = lessons.get(lesson.getDate());
-            Optional<MemLesson> existingLesson = dateLessons.stream().filter(memLesson -> memLesson.getDate().equals(
-                    lesson.getDate()) && memLesson.getBegin() == lesson.getBegin() && lesson.getGroup() == memLesson.getGroup()).findAny();
-
-            existingLesson.ifPresent(memLesson ->
-            {
-                lesson.setDbId(memLesson.getDbId());
-                dateLessons.remove(memLesson);
-            });
-
-            dateLessons.stream().filter(lesson::isFollowingLessonTo).findFirst().ifPresentOrElse(dateLesson ->
-                dateLesson.setEnd(lesson.getEnd()), () -> dateLessons.add(lesson));
-        });
     }
 
-    public List<Lesson> mapScheduleToDb(MemSchedule schedule, UUID userId)
+    public List<Lesson> toEntities(List<LessonResponse> responses, UUID userId)
     {
-        List<Lesson> dbLessons = new ArrayList<>();
-        if (schedule != null && schedule.getLessons() != null)
+        if (responses == null)
         {
-            schedule.getLessons().values().forEach(lessonList ->
-            {
-                lessonList.forEach(lesson -> dbLessons.add(new Lesson(
-                        userId,
-                        lesson.getDate(),
-                        lesson.getBegin(),
-                        lesson.getGroup(),
-                        lesson.getEnd(),
-                        lesson.getMaxGroup(),
-                        lesson.getName(),
-                        lesson.getTeacher(),
-                        lesson.getRoom())));
-            });
+            return List.of();
         }
-        return dbLessons;
+        Map<Key, List<Lesson>> byBlock = new LinkedHashMap<>();
+        for (LessonResponse response : responses)
+        {
+            Lesson lesson = toLesson(response, userId);
+            byBlock.computeIfAbsent(keyOf(lesson), key -> new ArrayList<>()).add(lesson);
+        }
+        List<Lesson> merged = new ArrayList<>();
+        byBlock.values().forEach(block -> merged.addAll(mergeConsecutive(block)));
+        return merged;
     }
 
-    public void mapDbLessonToSchedule(List<Lesson> dbLessons, MemSchedule schedule)
+    /**
+     * Collapses periods that follow each other without a gap into a single row, so a
+     * double lesson is one card rather than two.
+     */
+    private static List<Lesson> mergeConsecutive(List<Lesson> block)
     {
-        dbLessons.forEach(dbLesson ->
+        block.sort(Comparator.comparing(Lesson::getBegin));
+        List<Lesson> merged = new ArrayList<>();
+        for (Lesson lesson : block)
         {
-            MemLesson lesson = new MemLesson(
-                    dbLesson.getBegin(),
-                    dbLesson.getEnd(),
-                    dbLesson.getDate(),
-                    dbLesson.getGroup(),
-                    dbLesson.getMaxGroup(),
-                    dbLesson.getName(),
-                    dbLesson.getTeacher(),
-                    dbLesson.getRoom(),
-                    null);
-            if (!schedule.getLessons().containsKey(lesson.getDate()))
+            Lesson previous = merged.isEmpty() ? null : merged.get(merged.size() - 1);
+            if (previous != null && previous.getEnd() != null && lesson.getBegin() == previous.getEnd() + 1)
             {
-                schedule.getLessons().put(lesson.getDate(), new ArrayList<>());
+                previous.setEnd(lesson.getEnd());
             }
-            schedule.getLessons().get(lesson.getDate()).add(lesson);
-        });
+            else
+            {
+                merged.add(lesson);
+            }
+        }
+        return merged;
+    }
+
+    private static Key keyOf(Lesson lesson)
+    {
+        return new Key(lesson.getDate(), lesson.getGroup(), lesson.getName(),
+            lesson.getTeacher(), lesson.getRoom(), lesson.getMaxGroup());
+    }
+
+    private static Lesson toLesson(LessonResponse response, UUID userId)
+    {
+        return new Lesson(
+            userId,
+            parseDate(response.getDatum()),
+            (short) response.getAnfStd(),
+            (short) Character.getNumericValue(response.getGruppe().charAt(GROUP_INDEX)),
+            (short) response.getEndStd(),
+            (short) Character.getNumericValue(response.getGruppe().charAt(MAX_GROUP_INDEX)),
+            response.getUFachBez(),
+            response.getLehrer(),
+            response.getRaumLongtext());
+    }
+
+    /** The API sends dd.MM.yyyy. */
+    private static LocalDate parseDate(String value)
+    {
+        return LocalDate.of(
+            Integer.parseInt(value.substring(YEAR_START)),
+            Integer.parseInt(value.substring(MONTH_START, MONTH_END)),
+            Integer.parseInt(value.substring(0, DAY_END)));
     }
 }

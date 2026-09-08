@@ -41,7 +41,7 @@ public class LoginActivity extends Activity implements Callback
             binding.loginButtonBack.setVisibility(View.VISIBLE);
             binding.loginButtonBack.setOnClickListener((v) ->
             {
-                getSessionController().loadSession(this, null, null);
+                getSessionController().loadSession(this, null);
             });
         }
     }

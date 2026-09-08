@@ -2,6 +2,7 @@ package org.kabuapp.kabuapp.feature.auth;
 
 import lombok.AllArgsConstructor;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
+import org.kabuapp.kabuapp.core.data.ActiveUserStore;
 import org.kabuapp.kabuapp.core.data.CredentialCipher;
 import org.kabuapp.kabuapp.core.net.ApiException;
 import org.kabuapp.kabuapp.core.net.Callback;
@@ -25,6 +26,7 @@ public class AuthController implements TokenSource
     private AuthStateholder stateholder;
     private AppDatabase db;
     private AuthApi authApi;
+    private ActiveUserStore activeUserStore;
     private ExecutorService dbExecutor;
     private ExecutorService ioExecutor;
     private CredentialCipher cipher;
@@ -58,7 +60,7 @@ public class AuthController implements TokenSource
 
     public UUID getId()
     {
-        return stateholder.getDbId();
+        return activeUserStore.get();
     }
 
     public void removeUser(UUID id)
@@ -79,7 +81,7 @@ public class AuthController implements TokenSource
         stateholder.setUsername(null);
         stateholder.setPassword(null);
         stateholder.setToken(null);
-        stateholder.setDbId(UUID.randomUUID());
+        activeUserStore.set(null);
     }
 
     public boolean setCredentials(String username, String password, Callback callback, Object[] args)
@@ -88,7 +90,7 @@ public class AuthController implements TokenSource
         {
             stateholder.setUsername(username);
             stateholder.setPassword(password);
-            stateholder.getUsers().put(username, stateholder.getDbId());
+            stateholder.getUsers().put(username, activeUserStore.get());
             // Authentication is a network call, so it must not run on the caller's thread:
             // setCredentials is invoked straight from a click listener.
             ioExecutor.execute(() -> auth(callback, args));
@@ -126,13 +128,14 @@ public class AuthController implements TokenSource
 
     private void save()
     {
-        User existingUser = db.userDao().get(stateholder.getDbId());
+        UUID activeId = activeUserStore.get();
+        User existingUser = activeId == null ? null : db.userDao().get(activeId);
         if (existingUser == null)
         {
             User user = new User(UUID.randomUUID(), stateholder.getUsername(),
-                encrypt(stateholder.getPassword()), encrypt(stateholder.getToken()), true);
-            stateholder.setDbId(user.getId());
+                encrypt(stateholder.getPassword()), encrypt(stateholder.getToken()));
             db.userDao().insert(user);
+            activeUserStore.set(user.getId());
         }
         else
         {
@@ -143,14 +146,17 @@ public class AuthController implements TokenSource
         }
     }
 
+    /** Loads the account named by the active-user preference, or any stored account. */
     public UUID getDbUser()
     {
         List<User> users = db.userDao().getAll();
-        users.stream().filter(user -> Boolean.TRUE.equals(user.getStandard()) && !user.getUsername().isEmpty()).findAny().ifPresentOrElse(user ->
-        {
-            load(user);
-        }, () -> users.stream().filter(user -> !user.getUsername().isEmpty()).findFirst().ifPresent(this::load));
-        return stateholder.getDbId();
+        UUID activeId = activeUserStore.get();
+        users.stream()
+            .filter(user -> user.getId().equals(activeId) && !user.getUsername().isEmpty())
+            .findAny()
+            .ifPresentOrElse(this::load,
+                () -> users.stream().filter(user -> !user.getUsername().isEmpty()).findFirst().ifPresent(this::load));
+        return activeUserStore.get();
     }
 
     public void getDbUsers()
@@ -164,23 +170,15 @@ public class AuthController implements TokenSource
         });
     }
 
+    /**
+     * Switches to a stored account. Writing the preference re-points every observed query, so no
+     * screen has to recreate itself to pick up the change.
+     */
     public UUID getDbUserByNameAndLoad(String name)
     {
         UUID id = stateholder.getUsers().get(name);
-        List<User> users = db.userDao().getAll();
-
-        users.stream().filter(user -> Boolean.TRUE.equals(user.getStandard())).findAny().ifPresent(user ->
-        {
-            user.setStandard(false);
-            db.userDao().update(user);
-        });
-        users.stream().filter(user -> user.getId().equals(id)).findAny().ifPresent(user ->
-        {
-            user.setStandard(true);
-            db.userDao().update(user);
-            load(user);
-        });
-        return stateholder.getDbId();
+        db.userDao().getAll().stream().filter(user -> user.getId().equals(id)).findAny().ifPresent(this::load);
+        return activeUserStore.get();
     }
 
     private void load(User user)
@@ -188,7 +186,7 @@ public class AuthController implements TokenSource
         stateholder.setUsername(user.getUsername());
         stateholder.setPassword(decrypt(user.getPassword()));
         stateholder.setToken(decrypt(user.getToken()));
-        stateholder.setDbId(user.getId());
+        activeUserStore.set(user.getId());
     }
 
     private byte[] encrypt(String value)

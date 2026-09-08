@@ -2,10 +2,9 @@ package org.kabuapp.kabuapp.feature.auth;
 
 import org.kabuapp.kabuapp.core.data.LifetimeController;
 import org.kabuapp.kabuapp.feature.exam.ExamController;
-import org.kabuapp.kabuapp.feature.schedule.ScheduleController;
+import org.kabuapp.kabuapp.feature.schedule.ScheduleRepository;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
 import org.kabuapp.kabuapp.core.net.Callback;
-import org.kabuapp.kabuapp.feature.schedule.ScheduleUpdateTask;
 
 import java.util.List;
 import java.util.Map;
@@ -22,34 +21,33 @@ public class SessionController
     private ExamController examController;
     private LifetimeController lifetimeController;
     private AuthController authController;
-    private ScheduleController scheduleController;
+    private ScheduleRepository scheduleRepository;
     private ExecutorService dbExecutor;
 
-    public void loadSession(Callback callback, Object[] objects, ScheduleUpdateTask runnable)
+    public void loadSession(Callback callback, Object[] objects)
     {
         dbExecutor.execute(() ->
         {
-            loadSyncSession(runnable);
+            loadSyncSession();
             callback.callback(objects);
         });
     }
 
-    public void loadSession(ScheduleUpdateTask runnable)
+    public void loadSession()
     {
-        dbExecutor.execute(() -> loadSyncSession(runnable));
+        dbExecutor.execute(this::loadSyncSession);
     }
 
-    private void loadSyncSession(ScheduleUpdateTask runnable)
+    /**
+     * Restores the active account. The schedule is not loaded here any more - it is observed
+     * straight out of Room by the schedule view model.
+     */
+    private void loadSyncSession()
     {
         UUID userId = authController.getDbUser();
         authController.getDbUsers();
         examController.getDbExams(userId);
         lifetimeController.getDbLifetime(userId);
-        scheduleController.getDbSchedule(userId);
-        if (runnable != null)
-        {
-            runnable.run();
-        }
     }
 
     public void removeUser(UUID userId, Callback callback)
@@ -66,16 +64,14 @@ public class SessionController
     {
         db.userDao().delete(userId);
         authController.removeUser(userId);
-        scheduleController.resetState();
+        scheduleRepository.deleteFor(userId);
         examController.resetState();
         lifetimeController.resetState();
     }
 
     public void resetSate()
     {
-        authController.getId();
         authController.resetState();
-        scheduleController.resetState();
         examController.resetState();
         lifetimeController.resetState();
     }
@@ -91,7 +87,6 @@ public class SessionController
         UUID userId = authController.getDbUserByNameAndLoad(selectedUsername);
         examController.getDbExams(userId);
         lifetimeController.getDbLifetime(userId);
-        scheduleController.getDbSchedule(userId);
         if (callback != null)
         {
             callback.callback(new Object[] { });

@@ -28,6 +28,4 @@ public class User
     private byte[] password;
     @ColumnInfo(name = "token", typeAffinity = ColumnInfo.BLOB)
     private byte[] token;
-    @ColumnInfo(name = "standard")
-    private Boolean standard;
 }

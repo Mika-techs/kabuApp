@@ -1,8 +1,6 @@
 package org.kabuapp.kabuapp;
 
 import android.app.Application;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.StrictMode;
 import androidx.work.Constraints;
 import androidx.work.ExistingPeriodicWorkPolicy;
@@ -11,9 +9,7 @@ import androidx.work.WorkManager;
 import com.google.android.material.color.DynamicColors;
 import lombok.Getter;
 import org.kabuapp.kabuapp.core.data.AppContainer;
-import org.kabuapp.kabuapp.core.util.DateTimeUtils;
 import org.kabuapp.kabuapp.feature.notification.ExamNotificationWorker;
-import org.kabuapp.kabuapp.feature.schedule.ScheduleUpdateTask;
 
 import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
@@ -28,14 +24,7 @@ public class KabuApp extends Application
     private static final int NOTIFICATION_HOUR = 9;
     private static final String DAILY_WORK_NAME = "DailyNotify";
 
-    @Getter
-    public static class GlobalTaskManager
-    {
-        private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    }
-
     private AppContainer container;
-    private ScheduleUpdateTask scheduleUpdateTask;
 
     @Override
     public void onCreate()
@@ -46,10 +35,7 @@ public class KabuApp extends Application
         DynamicColors.applyToActivitiesIfAvailable(this);
 
         container = new AppContainer(this);
-        container.getSchedule().setSelectedDate(DateTimeUtils.getLocalDate());
-
-        scheduleUpdateTask = new ScheduleUpdateTask(null);
-        container.getSessionController().loadSession(scheduleUpdateTask);
+        container.getSessionController().loadSession();
         container.getSettingsController().loadSettings();
 
         startNotificationWorker();

@@ -14,7 +14,6 @@ import org.kabuapp.kabuapp.core.data.LifetimeController;
 import org.kabuapp.kabuapp.feature.auth.AuthController;
 import org.kabuapp.kabuapp.feature.auth.SessionController;
 import org.kabuapp.kabuapp.feature.exam.ExamController;
-import org.kabuapp.kabuapp.feature.schedule.ScheduleController;
 import org.kabuapp.kabuapp.feature.settings.SettingsController;
 
 import java.util.concurrent.ExecutorService;
@@ -28,11 +27,6 @@ public abstract class Activity extends AppCompatActivity
     protected AppContainer getContainer()
     {
         return ((KabuApp) getApplication()).getContainer();
-    }
-
-    protected ScheduleController getScheduleController()
-    {
-        return getContainer().getScheduleController();
     }
 
     protected ExamController getExamController()
