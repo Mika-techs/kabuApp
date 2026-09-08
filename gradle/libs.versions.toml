@@ -15,6 +15,7 @@ lifecycle = "2.10.0"
 junit = "4.13.2"
 robolectric = "4.16"
 coreTesting = "2.2.0"
+testCore = "1.7.0"
 
 metis = "1.0-SNAPSHOT"
 
@@ -41,6 +42,7 @@ lifecycle-livedata = { group = "androidx.lifecycle", name = "lifecycle-livedata"
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "coreTesting" }
+test-core = { group = "androidx.test", name = "core", version.ref = "testCore" }
 swiperrefeshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 metis = { group = "io.lilithtechs", name = "metis-json", version.ref = "metis" }

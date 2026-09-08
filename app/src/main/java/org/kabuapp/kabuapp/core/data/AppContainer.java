@@ -66,7 +66,7 @@ public class AppContainer
             .build();
 
         authController = new AuthController(
-            new AuthStateholder(), db, new AuthApi(baseClient), activeUserStore, dbExecutor, ioExecutor, new CredentialCipher());
+            new AuthStateholder(), db, new AuthApi(baseClient), activeUserStore, dbExecutor, ioExecutor, new CredentialCipher(new CredentialKeys.Keystore()));
 
         OkHttpClient authedClient = baseClient.newBuilder()
             .addInterceptor(new AuthInterceptor(authController))

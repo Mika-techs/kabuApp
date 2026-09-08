@@ -1,5 +1,6 @@
 package org.kabuapp.kabuapp.feature.schedule;
 
+import androidx.annotation.VisibleForTesting;
 import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Insert;
@@ -16,6 +17,11 @@ import java.util.UUID;
 @Dao
 public interface LessonDao
 {
+    /** Snapshot read; the app observes instead, so this exists for tests. */
+    @VisibleForTesting
+    @Query("SELECT * FROM schedule WHERE userId = :userId")
+    List<Lesson> getAllForTest(UUID userId);
+
     /** Room re-emits on every write, which is what removes the need for manual UI notification. */
     @Query("SELECT * FROM schedule WHERE userId = :userId")
     LiveData<List<Lesson>> observe(UUID userId);

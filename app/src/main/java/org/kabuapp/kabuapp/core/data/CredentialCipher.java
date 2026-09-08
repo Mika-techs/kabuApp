@@ -1,36 +1,32 @@
 package org.kabuapp.kabuapp.core.data;
 
+import lombok.AllArgsConstructor;
+
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.security.KeyStore;
 import java.util.Arrays;
 
-import android.security.keystore.KeyGenParameterSpec;
-import android.security.keystore.KeyProperties;
-
 /**
- * Encrypts the stored credentials with an AES/GCM key held in the Android Keystore. The key is
- * hardware-backed where available and cannot be exported, so a copy of the database taken off
- * the device - via backup, ADB or a rooted filesystem - is not decryptable elsewhere.
+ * Encrypts the stored credentials with AES/GCM. Ciphertext is framed as
+ * {@code [12-byte IV][ciphertext+tag]} in a single BLOB column.
  *
- * <p>Ciphertext is stored as {@code [12-byte IV][ciphertext+tag]} in a single BLOB column.
+ * @see CredentialKeys for where the key comes from
  */
+@AllArgsConstructor
 public class CredentialCipher
 {
-    private static final String KEYSTORE = "AndroidKeyStore";
-    private static final String KEY_ALIAS = "kabuapp-credentials";
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int IV_LENGTH = 12;
     private static final int TAG_LENGTH_BITS = 128;
 
+    private final CredentialKeys keys;
+
     /**
      * @return the encrypted form of {@code plaintext}, or {@code null} when {@code plaintext} is null
-     * @throws GeneralSecurityException when the Keystore is unavailable
+     * @throws GeneralSecurityException when the key is unavailable
      */
     public byte[] encrypt(String plaintext) throws GeneralSecurityException
     {
@@ -39,15 +35,16 @@ public class CredentialCipher
             return null;
         }
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        cipher.init(Cipher.ENCRYPT_MODE, key());
+        cipher.init(Cipher.ENCRYPT_MODE, keys.key());
         byte[] iv = cipher.getIV();
         byte[] encrypted = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
         return ByteBuffer.allocate(iv.length + encrypted.length).put(iv).put(encrypted).array();
     }
 
     /**
-     * @return the decrypted string, or {@code null} when {@code stored} is null or malformed
-     * @throws GeneralSecurityException when the Keystore is unavailable or the key changed
+     * @return the decrypted string, or {@code null} when {@code stored} is null or too short to
+     *     contain both an IV and a payload
+     * @throws GeneralSecurityException when the key is unavailable or the payload was tampered with
      */
     public String decrypt(byte[] stored) throws GeneralSecurityException
     {
@@ -56,37 +53,7 @@ public class CredentialCipher
             return null;
         }
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(TAG_LENGTH_BITS, stored, 0, IV_LENGTH));
-        byte[] plaintext = cipher.doFinal(Arrays.copyOfRange(stored, IV_LENGTH, stored.length));
-        return new String(plaintext, StandardCharsets.UTF_8);
-    }
-
-    private static synchronized SecretKey key() throws GeneralSecurityException
-    {
-        try
-        {
-            KeyStore keyStore = KeyStore.getInstance(KEYSTORE);
-            keyStore.load(null);
-            KeyStore.Entry entry = keyStore.getEntry(KEY_ALIAS, null);
-            if (entry instanceof KeyStore.SecretKeyEntry)
-            {
-                return ((KeyStore.SecretKeyEntry) entry).getSecretKey();
-            }
-            KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE);
-            generator.init(new KeyGenParameterSpec.Builder(
-                KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .build());
-            return generator.generateKey();
-        }
-        catch (GeneralSecurityException e)
-        {
-            throw e;
-        }
-        catch (Exception e)
-        {
-            throw new GeneralSecurityException("Keystore unavailable", e);
-        }
+        cipher.init(Cipher.DECRYPT_MODE, keys.key(), new GCMParameterSpec(TAG_LENGTH_BITS, stored, 0, IV_LENGTH));
+        return new String(cipher.doFinal(Arrays.copyOfRange(stored, IV_LENGTH, stored.length)), StandardCharsets.UTF_8);
     }
 }
