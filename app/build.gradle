@@ -10,7 +10,7 @@ android {
         applicationId "org.kabuapp.kabuapp"
         minSdk 28
         targetSdk 36
-        versionCode 1
+        versionCode 7
         versionName "0.7"
 
         javaCompileOptions {
@@ -45,12 +45,8 @@ android {
 }
 
 dependencies {
-    implementation libs.navigation.fragment
-    implementation libs.navigation.ui
-    implementation libs.preference
     implementation libs.swiperrefeshlayout
     implementation libs.recyclerview
-    implementation libs.fragment
     implementation libs.appcompat
     implementation libs.material
     implementation libs.activity
@@ -61,9 +57,6 @@ dependencies {
     implementation libs.apache.httpcore
 
     implementation libs.metis
-
-    implementation libs.lifecycle.livedata.ktx
-    implementation libs.lifecycle.viewmodel.ktx
 
     implementation libs.annotation
 

@@ -25,12 +25,11 @@ public class LoginActivity extends Activity implements Callback
         {
             var i = new Intent(this, ScheduleActivity.class);
             startActivity(i);
+            finish();
             return;
         }
 
         binding = ActivityLoginBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
         setContentView(binding.getRoot());
         authHandler();
         setNotice(this, findViewById(R.id.notice_code_login));

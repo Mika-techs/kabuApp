@@ -24,6 +24,9 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class ExamController
 {
+    /** August is summer holidays - the API never returns exams for it, so the month is skipped. */
+    private static final int SUMMER_HOLIDAY_MONTH = 8;
+
     @Getter
     private MemExams exams;
     private ExamMapper examMapper;
@@ -83,7 +86,7 @@ public class ExamController
         datesToRemove.forEach(exams.getExams()::remove);
         for (int i = 0; i < months; i++)
         {
-            if (date.plusMonths(i).getMonthValue() != 8)
+            if (date.plusMonths(i).getMonthValue() != SUMMER_HOLIDAY_MONTH)
             {
                 updateExams(date.plusMonths(i).getMonthValue(), token, userId);
             }

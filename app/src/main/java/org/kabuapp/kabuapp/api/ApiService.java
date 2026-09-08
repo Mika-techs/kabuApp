@@ -2,7 +2,6 @@ package org.kabuapp.kabuapp.api;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.classic.methods.HttpPut;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
@@ -70,15 +69,6 @@ public abstract class ApiService
                 }
                 request = httpPost;
                 break;
-            case "PUT":
-                HttpPut httpPut = new HttpPut(uri);
-                if (body != null)
-                {
-                    String jsonBody = jsonMapper.toJson(body);
-                    httpPut.setEntity(new StringEntity(jsonBody, ContentType.APPLICATION_JSON));
-                }
-                request = httpPut;
-                break;
             default:
                 throw new UnsupportedOperationException("HTTP method " + httpMethod + " is not supported.");
         }
@@ -120,10 +110,6 @@ public abstract class ApiService
             {
                 return null;
             }
-        }
-        finally
-        {
-            request.abort();
         }
     }
 

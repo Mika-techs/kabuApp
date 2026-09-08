@@ -13,19 +13,12 @@ apache-httpcore = "5.4.1"
 
 metis = "1.0-SNAPSHOT"
 
-lifecycleLivedataKtx = "2.10.0"
-lifecycleViewmodelKtx = "2.10.0"
-
 material = "1.13.0"
-preference = "1.2.1"
 
 activity = "1.12.4"
 constraintlayout = "2.2.1"
-navigationFragment = "2.9.7"
-navigationUi = "2.9.7"
 swiperefreshlayout = "1.2.0"
 recyclerview = "1.4.0"
-fragment = "1.8.9"
 work-runtime = "2.11.1"
 
 [libraries]
@@ -35,18 +28,12 @@ material = { group = "com.google.android.material", name = "material", version.r
 activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 annotation = { group = "androidx.annotation", name = "annotation", version.ref = "annotation" }
-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "lifecycleLivedataKtx" }
-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycleViewmodelKtx" }
-navigation-fragment = { group = "androidx.navigation", name = "navigation-fragment", version.ref = "navigationFragment" }
-navigation-ui = { group = "androidx.navigation", name = "navigation-ui", version.ref = "navigationUi" }
-preference = { group = "androidx.preference", name = "preference", version.ref = "preference" }
 room-runtime-android = { group = "androidx.room", name = "room-runtime-android", version.ref = "roomRuntimeAndroid" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
 apache-httpclient = { group = "org.apache.httpcomponents.client5", name = "httpclient5", version.ref = "apache-httpclient" }
 apache-httpcore = { group = "org.apache.httpcomponents.core5", name = "httpcore5", version.ref = "apache-httpcore" }
 swiperrefeshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
-fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
 metis = { group = "io.lilithtechs", name = "metis-json", version.ref = "metis" }
 work-runtime = { group = "androidx.work", name = "work-runtime", version.ref = "work-runtime" }
 

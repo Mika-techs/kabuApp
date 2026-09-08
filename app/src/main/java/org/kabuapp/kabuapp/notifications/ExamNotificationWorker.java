@@ -73,7 +73,7 @@ public class ExamNotificationWorker extends Worker
         if (isNotificationExamNextDay(db))
         {
             MemExam memExam = getMemExams(db).getExams().get(DateTimeUtils.getLocalDate().plusDays(1));
-            if (memExam.getDuration() == 1)
+            if (memExam != null && memExam.getDuration() == 1)
             {
                 return memExam;
             }
@@ -98,7 +98,7 @@ public class ExamNotificationWorker extends Worker
     {
         SettingsController settingsController = new SettingsController(null, db);
         MemSettings memSettings = settingsController.getMemSettingsFromDb();
-        return memSettings.isNotificationExamNextDay();
+        return memSettings != null && memSettings.isNotificationExamNextDay();
     }
 
     private MemExams getMemExams(AppDatabase db)

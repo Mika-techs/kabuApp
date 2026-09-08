@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ViewGroup;
@@ -59,7 +60,7 @@ public class ScheduleActivity extends Activity implements Callback, DateAdapter.
     private final DateTimeFormatter weekdayFormatter = DateTimeFormatter.ofPattern("EEE", Locale.getDefault());
     private final DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM", Locale.getDefault());
     private final DateTimeFormatter dayFormatter = DateTimeFormatter.ofPattern("dd");
-    private final Handler timerHandler = new Handler();
+    private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private ScheduleUiGenerator scheduleUiGenerator;
     private SwipeRefreshLayout swipeRefreshLayout;
     private LinearLayoutManager layoutManager;
@@ -107,7 +108,6 @@ public class ScheduleActivity extends Activity implements Callback, DateAdapter.
 
         getExamController().updateExams(getAuthController().getToken(), getAuthController(), null, null, Duration.ofHours(1), getAuthController().getId());
 
-        swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout_schedule);
         swipeRefreshLayout.setOnRefreshListener(this);
 
         RecyclerView dateRecyclerView = findViewById(R.id.recycler_view_date_selector);
@@ -163,6 +163,7 @@ public class ScheduleActivity extends Activity implements Callback, DateAdapter.
         {
             var i = new Intent(this, LoginActivity.class);
             startActivity(i);
+            finish();
         }
 
         getDelegate().onStart();

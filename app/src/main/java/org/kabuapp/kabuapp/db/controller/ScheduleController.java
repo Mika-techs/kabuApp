@@ -3,7 +3,6 @@ package org.kabuapp.kabuapp.db.controller;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.kabuapp.kabuapp.api.DigikabuApiService;
 import org.kabuapp.kabuapp.api.exceptions.UnauthorisedException;
 import org.kabuapp.kabuapp.api.models.LessonResponse;
@@ -29,7 +28,6 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-@Slf4j
 @AllArgsConstructor
 public class ScheduleController
 {

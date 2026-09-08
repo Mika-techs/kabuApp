@@ -29,7 +29,6 @@ import org.kabuapp.kabuapp.notifications.ExamNotificationWorker;
 import org.kabuapp.kabuapp.schedule.ScheduleUpdateTask;
 import org.kabuapp.kabuapp.utils.DateTimeUtils;
 
-import java.io.IOException;
 import java.util.Calendar;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -92,35 +91,6 @@ public class KabuApp extends Application
 
         settingsController.loadSettings();
         startNotificationWorker();
-    }
-
-    @Override
-    public void onTerminate()
-    {
-        super.onTerminate();
-        try
-        {
-            digikabuApiService.closeHttpClient();
-        }
-        catch (IOException ignored)
-        {
-        }
-        if (executorService != null && !executorService.isShutdown())
-        {
-            executorService.shutdown();
-            try
-            {
-                if (!executorService.awaitTermination(60, TimeUnit.SECONDS))
-                {
-                    executorService.shutdownNow();
-                }
-            }
-            catch (InterruptedException e)
-            {
-                executorService.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
     }
 
     private void startNotificationWorker()
