@@ -1,93 +1,74 @@
 package org.kabuapp.kabuapp.feature.exam;
 
 import android.os.Bundle;
-import android.view.ViewGroup;
-import androidx.activity.EdgeToEdge;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import com.google.android.material.snackbar.Snackbar;
 import org.kabuapp.kabuapp.R;
-import org.kabuapp.kabuapp.feature.exam.MemExam;
-import org.kabuapp.kabuapp.databinding.ActivityExamBinding;
-import org.kabuapp.kabuapp.core.net.Callback;
+import org.kabuapp.kabuapp.core.net.ApiException;
 import org.kabuapp.kabuapp.core.ui.Activity;
+import org.kabuapp.kabuapp.core.ui.ViewModelFactory;
+import org.kabuapp.kabuapp.databinding.ActivityExamBinding;
+import org.kabuapp.kabuapp.domain.RefreshState;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleActivity;
 import org.kabuapp.kabuapp.feature.settings.SettingsActivity;
-import org.kabuapp.kabuapp.core.util.DateTimeUtils;
 
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
 
-public class ExamActivity extends Activity implements SwipeRefreshLayout.OnRefreshListener, Callback
+/** The exam screen. Rows come from {@link ExamViewModel} through LiveData. */
+public class ExamActivity extends Activity implements SwipeRefreshLayout.OnRefreshListener
 {
     private static final Duration EXAM_MAX_AGE = Duration.ofMinutes(5);
 
-    private SwipeRefreshLayout swipeRefreshLayout;
-    private ExamUiGenerator uiGenerator;
     private ActivityExamBinding binding;
+    private ExamViewModel viewModel;
+    private ExamAdapter examAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
-
-        uiGenerator = new ExamUiGenerator(getSettingsController().isIsoDate()
-            ? DateTimeFormatter.ISO_LOCAL_DATE : DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT));
 
         binding = ActivityExamBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        swipeRefreshLayout = findViewById(R.id.swipe_refresh_exam);
-        swipeRefreshLayout.setOnRefreshListener(this);
+        viewModel = new ViewModelProvider(this, new ViewModelFactory(getContainer())).get(ExamViewModel.class);
+
+        // ISO dates are deliberately limited to this screen; they do not fit the schedule's date strip.
+        examAdapter = new ExamAdapter(getSettingsController().isIsoDate()
+            ? DateTimeFormatter.ISO_LOCAL_DATE
+            : DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT));
+
+        binding.recyclerViewExams.setLayoutManager(new LinearLayoutManager(this));
+        binding.recyclerViewExams.setAdapter(examAdapter);
 
         barButtonRefListener(binding.barSettings, SettingsActivity.class);
         barButtonRefListener(binding.barSchedule, ScheduleActivity.class);
-        updateExams();
+
+        binding.swipeRefreshExam.setOnRefreshListener(this);
+
+        viewModel.getRows().observe(this, examAdapter::submitList);
+        viewModel.getRefreshState().observe(this, this::onRefreshState);
+        viewModel.refresh(EXAM_MAX_AGE);
     }
 
-    private void updateExams()
+    private void onRefreshState(RefreshState state)
     {
-        ViewGroup linearExams = findViewById(R.id.linear_exams);
-        Map<LocalDate, MemExam> examsRef = getExamController().getExams().getExams();
-        if (examsRef != null && !examsRef.isEmpty())
+        binding.swipeRefreshExam.setRefreshing(state.status() == RefreshState.Status.LOADING);
+        if (state.status() != RefreshState.Status.ERROR)
         {
-            Map<LocalDate, MemExam> exams = new HashMap<>(examsRef);
-            if (exams.keySet().stream().anyMatch(date -> date.isBefore(DateTimeUtils.getLocalDate()))
-                && exams.keySet().stream().anyMatch(date -> date.isAfter(DateTimeUtils.getLocalDate()))
-                && exams.entrySet().stream().noneMatch(entry -> uiGenerator.isCurrent(entry.getKey(), entry.getValue().getDuration())))
-            {
-                exams.computeIfAbsent(DateTimeUtils.getLocalDate(), k -> new MemExam(null, DateTimeUtils.getLocalDate(), (short) -1, null));
-            }
-            runOnUiThread(() ->
-            {
-                linearExams.removeAllViews();
-                exams.values().stream().sorted(Comparator.comparing(MemExam::getBeginn))
-                    .forEach(exam ->
-                        uiGenerator.addExamElement(
-                            this,
-                            linearExams,
-                            exam));
-            });
+            return;
         }
-        else
-        {
-            runOnUiThread(linearExams::removeAllViews);
-        }
+        int message = state.errorKind() == ApiException.Kind.NETWORK ? R.string.error_network : R.string.error_server;
+        Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).show();
     }
 
     @Override
     public void onRefresh()
     {
-        swipeRefreshLayout.setRefreshing(false);
-        getExamController().updateExams(this, new Object[1], EXAM_MAX_AGE, getAuthController().getId());
-    }
-
-    public void callback(Object[] objects)
-    {
-        updateExams();
+        viewModel.refresh(Duration.ofSeconds(1));
     }
 }

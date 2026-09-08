@@ -1,75 +1,63 @@
 package org.kabuapp.kabuapp.feature.exam;
 
-import org.kabuapp.kabuapp.feature.exam.ExamResponse;
-import org.kabuapp.kabuapp.feature.exam.MemExam;
-import org.kabuapp.kabuapp.feature.exam.MemExams;
-import org.kabuapp.kabuapp.feature.exam.Exam;
-
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
+/**
+ * Converts API responses into stored exams. The API returns one entry per day, so an exam
+ * spanning several days arrives as repeated entries with the same description and is collapsed
+ * into a single row with a duration.
+ */
 public class ExamMapper
 {
-    public void mapApiToExams(List<ExamResponse> responses, MemExams exams)
+    private static final int DAY_END = 2;
+    private static final int MONTH_START = 3;
+    private static final int MONTH_END = 5;
+    private static final int YEAR_START = 6;
+
+    /**
+     * Merges the responses of every requested month at once. Merging per month, as the previous
+     * version did, recorded an exam spanning a month boundary as two separate exams.
+     */
+    public List<Exam> toEntities(List<ExamResponse> responses, UUID userId)
     {
-        if (responses == null || responses.isEmpty() || exams == null)
+        if (responses == null)
         {
-            return;
+            return List.of();
         }
-        String lastInfo = "";
-        MemExam lastExam = null;
-        for (ExamResponse response : responses)
-        {
-            if (response.getInfo().isEmpty())
-            {
-                continue;
-            }
-            else if (lastInfo.equals(response.getInfo()))
-            {
-                lastExam.addDuration();
-            }
-            else
-            {
-                MemExam exam = new MemExam(
-                        UUID.randomUUID(),
-                        LocalDate.of(
-                                Integer.parseInt(response.getDate().substring(6)),
-                                Integer.parseInt(response.getDate().substring(3, 5)),
-                                Integer.parseInt(response.getDate().substring(0, 2))),
-                        (short) 1,
-                        response.getInfo());
-                lastExam = exam;
-                lastInfo = response.getInfo();
-                exams.getExams().put(exam.getBeginn(), exam);
-            }
-        }
+        List<Exam> parsed = new ArrayList<>();
+        responses.stream()
+            .filter(response -> response.getInfo() != null && !response.getInfo().isEmpty())
+            .map(response -> new Exam(userId, parseDate(response.getDate()), response.getInfo(), (short) 1))
+            .sorted(Comparator.comparing(Exam::getDate))
+            .forEach(exam -> merge(parsed, exam));
+        return parsed;
     }
 
-    public List<Exam> mapExamsToDb(MemExams exams, UUID userId)
+    /** Extends the previous exam when this one continues it on the next day. */
+    private static void merge(List<Exam> merged, Exam exam)
     {
-        return exams.getExams().values().stream().map(exam ->
-            new Exam(
-                userId,
-                exam.getBeginn(),
-                exam.getInfo(),
-                exam.getDuration())).collect(Collectors.toList());
+        for (Exam existing : merged)
+        {
+            if (existing.getInfo().equals(exam.getInfo())
+                && existing.getDate().plusDays(existing.getDuration()).equals(exam.getDate()))
+            {
+                existing.setDuration((short) (existing.getDuration() + 1));
+                return;
+            }
+        }
+        merged.add(exam);
     }
 
-    public void mapDbToExams(List<Exam> dbExams, MemExams exams)
+    /** The API sends dd.MM.yyyy. */
+    private static LocalDate parseDate(String value)
     {
-        if (dbExams != null && !dbExams.isEmpty())
-        {
-            dbExams.forEach(dbExam ->
-            {
-                MemExam exam = new MemExam(
-                        null,
-                        dbExam.getDate(),
-                        dbExam.getDuration(),
-                        dbExam.getInfo());
-                exams.getExams().put(exam.getBeginn(), exam);
-            });
-        }
+        return LocalDate.of(
+            Integer.parseInt(value.substring(YEAR_START)),
+            Integer.parseInt(value.substring(MONTH_START, MONTH_END)),
+            Integer.parseInt(value.substring(0, DAY_END)));
     }
 }

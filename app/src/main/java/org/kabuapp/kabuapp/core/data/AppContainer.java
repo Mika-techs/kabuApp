@@ -10,9 +10,8 @@ import org.kabuapp.kabuapp.feature.auth.AuthController;
 import org.kabuapp.kabuapp.feature.auth.AuthStateholder;
 import org.kabuapp.kabuapp.feature.auth.SessionController;
 import org.kabuapp.kabuapp.feature.exam.ExamApi;
-import org.kabuapp.kabuapp.feature.exam.ExamController;
 import org.kabuapp.kabuapp.feature.exam.ExamMapper;
-import org.kabuapp.kabuapp.feature.exam.MemExams;
+import org.kabuapp.kabuapp.feature.exam.ExamRepository;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleApi;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleMapper;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleRepository;
@@ -48,7 +47,7 @@ public class AppContainer
     private final LifetimeController lifetimeController;
     private final AuthController authController;
     private final ScheduleRepository scheduleRepository;
-    private final ExamController examController;
+    private final ExamRepository examRepository;
     private final SessionController sessionController;
     private final SettingsController settingsController;
 
@@ -77,10 +76,10 @@ public class AppContainer
         lifetimeController = new LifetimeController(db, dbExecutor);
         scheduleRepository = new ScheduleRepository(
             new ScheduleApi(authedClient), new ScheduleMapper(), lifetimeController, db, dbExecutor, ioExecutor);
-        examController = new ExamController(
-            new MemExams(), new ExamMapper(), lifetimeController, new ExamApi(authedClient), dbExecutor, ioExecutor, db);
+        examRepository = new ExamRepository(
+            new ExamApi(authedClient), new ExamMapper(), lifetimeController, db, dbExecutor, ioExecutor);
         sessionController = new SessionController(
-            db, examController, lifetimeController, authController, scheduleRepository, dbExecutor);
+            db, examRepository, lifetimeController, authController, scheduleRepository, dbExecutor);
         settingsController = new SettingsController(dbExecutor, db);
     }
 }

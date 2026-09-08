@@ -1,7 +1,7 @@
 package org.kabuapp.kabuapp.feature.auth;
 
 import org.kabuapp.kabuapp.core.data.LifetimeController;
-import org.kabuapp.kabuapp.feature.exam.ExamController;
+import org.kabuapp.kabuapp.feature.exam.ExamRepository;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleRepository;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
 import org.kabuapp.kabuapp.core.net.Callback;
@@ -18,7 +18,7 @@ import lombok.AllArgsConstructor;
 public class SessionController
 {
     private AppDatabase db;
-    private ExamController examController;
+    private ExamRepository examRepository;
     private LifetimeController lifetimeController;
     private AuthController authController;
     private ScheduleRepository scheduleRepository;
@@ -46,7 +46,6 @@ public class SessionController
     {
         UUID userId = authController.getDbUser();
         authController.getDbUsers();
-        examController.getDbExams(userId);
         lifetimeController.getDbLifetime(userId);
     }
 
@@ -65,14 +64,13 @@ public class SessionController
         db.userDao().delete(userId);
         authController.removeUser(userId);
         scheduleRepository.deleteFor(userId);
-        examController.resetState();
+        examRepository.deleteFor(userId);
         lifetimeController.resetState();
     }
 
     public void resetSate()
     {
         authController.resetState();
-        examController.resetState();
         lifetimeController.resetState();
     }
 
@@ -85,7 +83,6 @@ public class SessionController
     {
         resetSate();
         UUID userId = authController.getDbUserByNameAndLoad(selectedUsername);
-        examController.getDbExams(userId);
         lifetimeController.getDbLifetime(userId);
         if (callback != null)
         {

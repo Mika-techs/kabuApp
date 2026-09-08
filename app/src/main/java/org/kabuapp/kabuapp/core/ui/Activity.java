@@ -13,7 +13,6 @@ import org.kabuapp.kabuapp.core.data.AppContainer;
 import org.kabuapp.kabuapp.core.data.LifetimeController;
 import org.kabuapp.kabuapp.feature.auth.AuthController;
 import org.kabuapp.kabuapp.feature.auth.SessionController;
-import org.kabuapp.kabuapp.feature.exam.ExamController;
 import org.kabuapp.kabuapp.feature.settings.SettingsController;
 
 import java.util.concurrent.ExecutorService;
@@ -27,11 +26,6 @@ public abstract class Activity extends AppCompatActivity
     protected AppContainer getContainer()
     {
         return ((KabuApp) getApplication()).getContainer();
-    }
-
-    protected ExamController getExamController()
-    {
-        return getContainer().getExamController();
     }
 
     protected LifetimeController getLifetimeController()

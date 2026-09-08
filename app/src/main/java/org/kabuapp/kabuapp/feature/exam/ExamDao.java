@@ -1,5 +1,6 @@
 package org.kabuapp.kabuapp.feature.exam;
 
+import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
@@ -18,8 +19,8 @@ public interface ExamDao
     @Query("SELECT * FROM exams WHERE userId = :userId")
     List<Exam> get(UUID userId);
 
-    @Query("SELECT * FROM exams")
-    List<Exam> getAll();
+    @Query("SELECT * FROM exams WHERE userId = :userId")
+    LiveData<List<Exam>> observe(UUID userId);
 
     @TypeConverters({LocalDateConverter.class})
     @Query("SELECT * FROM exams WHERE date = :date")

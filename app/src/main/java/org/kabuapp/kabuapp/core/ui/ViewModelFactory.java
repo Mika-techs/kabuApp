@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel;
 import androidx.lifecycle.ViewModelProvider;
 import lombok.AllArgsConstructor;
 import org.kabuapp.kabuapp.core.data.AppContainer;
+import org.kabuapp.kabuapp.feature.exam.ExamViewModel;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleViewModel;
 
 /**
@@ -24,6 +25,10 @@ public class ViewModelFactory implements ViewModelProvider.Factory
         if (modelClass.isAssignableFrom(ScheduleViewModel.class))
         {
             return (T) new ScheduleViewModel(container.getScheduleRepository(), container.getActiveUserStore());
+        }
+        if (modelClass.isAssignableFrom(ExamViewModel.class))
+        {
+            return (T) new ExamViewModel(container.getExamRepository(), container.getActiveUserStore());
         }
         throw new IllegalArgumentException("Unknown ViewModel: " + modelClass.getName());
     }
