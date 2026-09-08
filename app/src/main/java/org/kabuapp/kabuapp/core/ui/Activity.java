@@ -13,7 +13,7 @@ import org.kabuapp.kabuapp.core.data.AppContainer;
 import org.kabuapp.kabuapp.core.data.LifetimeController;
 import org.kabuapp.kabuapp.feature.auth.AuthController;
 import org.kabuapp.kabuapp.feature.auth.SessionController;
-import org.kabuapp.kabuapp.feature.settings.SettingsController;
+import org.kabuapp.kabuapp.feature.settings.SettingsStore;
 
 import java.util.concurrent.ExecutorService;
 
@@ -33,9 +33,9 @@ public abstract class Activity extends AppCompatActivity
         return getContainer().getLifetimeController();
     }
 
-    protected SettingsController getSettingsController()
+    protected SettingsStore getSettingsStore()
     {
-        return getContainer().getSettingsController();
+        return getContainer().getSettingsStore();
     }
 
     protected SessionController getSessionController()

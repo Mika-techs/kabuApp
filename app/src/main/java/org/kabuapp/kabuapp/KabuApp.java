@@ -36,7 +36,6 @@ public class KabuApp extends Application
 
         container = new AppContainer(this);
         container.getSessionController().loadSession();
-        container.getSettingsController().loadSettings();
 
         startNotificationWorker();
     }

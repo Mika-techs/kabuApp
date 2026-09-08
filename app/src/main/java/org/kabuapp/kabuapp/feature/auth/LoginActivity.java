@@ -1,22 +1,26 @@
 package org.kabuapp.kabuapp.feature.auth;
 
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
+import androidx.lifecycle.ViewModelProvider;
 import org.kabuapp.kabuapp.R;
-import org.kabuapp.kabuapp.databinding.ActivityLoginBinding;
 import org.kabuapp.kabuapp.core.net.ApiException;
-import org.kabuapp.kabuapp.core.net.Callback;
 import org.kabuapp.kabuapp.core.ui.Activity;
+import org.kabuapp.kabuapp.core.ui.ViewModelFactory;
+import org.kabuapp.kabuapp.databinding.ActivityLoginBinding;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleActivity;
 
 import static org.kabuapp.kabuapp.core.ui.NoticeGenerator.setNotice;
 
-public class LoginActivity extends Activity implements Callback
+/** The login screen, and the entry point for adding a further account. */
+public class LoginActivity extends Activity
 {
+    private static final String EXTRA_ADD_NEW_ACCOUNT = "ADD_NEW_ACCOUNT";
+
     private ActivityLoginBinding binding;
+    private AuthViewModel viewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -24,62 +28,45 @@ public class LoginActivity extends Activity implements Callback
         super.onCreate(savedInstanceState);
         if (getAuthController().isInitialized())
         {
-            var i = new Intent(this, ScheduleActivity.class);
-            startActivity(i);
-            finish();
+            goToSchedule();
             return;
         }
 
         binding = ActivityLoginBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        authHandler();
+
+        viewModel = new ViewModelProvider(this, new ViewModelFactory(getContainer())).get(AuthViewModel.class);
+        viewModel.getLoginResult().observe(this, this::onLoginResult);
+
+        binding.login.setOnClickListener(v -> viewModel.login(
+            binding.username.getText().toString(), binding.password.getText().toString()));
+
         setNotice(this, findViewById(R.id.notice_code_login));
 
-        boolean isAddNewAccountFlow = getIntent().getBooleanExtra("ADD_NEW_ACCOUNT", false);
-        if (isAddNewAccountFlow)
+        if (getIntent().getBooleanExtra(EXTRA_ADD_NEW_ACCOUNT, false))
         {
             binding.loginButtonBack.setVisibility(View.VISIBLE);
-            binding.loginButtonBack.setOnClickListener((v) ->
-            {
-                getSessionController().loadSession(this, null);
-            });
+            binding.loginButtonBack.setOnClickListener(v -> viewModel.cancelAddAccount());
         }
     }
 
-    private void authHandler()
+    private void onLoginResult(LoginResult result)
     {
-        final EditText username = binding.username;
-        final EditText password = binding.password;
-
-        binding.login.setOnClickListener(v ->
+        if (result.success())
         {
-            Object[] args = { null };
-            if (!getAuthController().setCredentials(username.getText().toString(), password.getText().toString(), this, args))
-            {
-                if (username.isFocused())
-                {
-                    username.setError(getString(R.string.login_wrong));
-                }
-                else
-                {
-                    password.setError(getString(R.string.login_wrong));
-                }
-            }
-        });
-    }
-
-    public void callback(Object[] args)
-    {
-        if (args == null || args[0] == null)
-        {
-            Intent i = new Intent(this, ScheduleActivity.class);
-            startActivity(i);
-            finish();
+            goToSchedule();
             return;
         }
-        showError(args[0] instanceof ApiException.Kind ? (ApiException.Kind) args[0] : ApiException.Kind.BAD_CREDENTIALS);
+        showError(result.errorKind());
     }
 
+    private void goToSchedule()
+    {
+        startActivity(new Intent(this, ScheduleActivity.class));
+        finish();
+    }
+
+    /** Wrong credentials and an unreachable server used to look identical to the user. */
     private void showError(ApiException.Kind kind)
     {
         int message;
@@ -98,16 +85,7 @@ public class LoginActivity extends Activity implements Callback
                 message = R.string.login_wrong;
                 break;
         }
-        runOnUiThread(() ->
-        {
-            if (binding.username.isFocused())
-            {
-                binding.username.setError(getString(message));
-            }
-            else
-            {
-                binding.password.setError(getString(message));
-            }
-        });
+        EditText target = binding.username.isFocused() ? binding.username : binding.password;
+        target.setError(getString(message));
     }
 }

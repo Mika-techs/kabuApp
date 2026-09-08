@@ -4,7 +4,6 @@ import org.kabuapp.kabuapp.core.data.LifetimeController;
 import org.kabuapp.kabuapp.feature.exam.ExamRepository;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleRepository;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
-import org.kabuapp.kabuapp.core.net.Callback;
 
 import java.util.List;
 import java.util.Map;
@@ -24,12 +23,12 @@ public class SessionController
     private ScheduleRepository scheduleRepository;
     private ExecutorService dbExecutor;
 
-    public void loadSession(Callback callback, Object[] objects)
+    public void loadSession(Runnable onLoaded)
     {
         dbExecutor.execute(() ->
         {
             loadSyncSession();
-            callback.callback(objects);
+            onLoaded.run();
         });
     }
 
@@ -49,10 +48,10 @@ public class SessionController
         lifetimeController.getDbLifetime(userId);
     }
 
-    public void removeUser(UUID userId, Callback callback)
+    public void removeUser(UUID userId, Runnable onRemoved)
     {
         removeUser(userId);
-        callback.callback(null);
+        onRemoved.run();
     }
 
     /**
@@ -79,14 +78,14 @@ public class SessionController
         return db.userDao().getAll().stream().map(user -> Map.of(user.getId(), user.getUsername())).collect(Collectors.toList());
     }
 
-    public void switchAccount(String selectedUsername, Callback callback)
+    public void switchAccount(String selectedUsername, Runnable onSwitched)
     {
         resetSate();
         UUID userId = authController.getDbUserByNameAndLoad(selectedUsername);
         lifetimeController.getDbLifetime(userId);
-        if (callback != null)
+        if (onSwitched != null)
         {
-            callback.callback(new Object[] { });
+            onSwitched.run();
         }
     }
 }

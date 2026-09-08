@@ -10,15 +10,13 @@ import androidx.room.TypeConverters;
 import org.kabuapp.kabuapp.feature.exam.ExamDao;
 import org.kabuapp.kabuapp.feature.schedule.LessonDao;
 import org.kabuapp.kabuapp.core.data.LifetimeDao;
-import org.kabuapp.kabuapp.feature.settings.SettingsDao;
 import org.kabuapp.kabuapp.feature.auth.UserDao;
 import org.kabuapp.kabuapp.feature.exam.Exam;
 import org.kabuapp.kabuapp.feature.schedule.Lesson;
 import org.kabuapp.kabuapp.core.data.Lifetime;
-import org.kabuapp.kabuapp.feature.settings.Settings;
 import org.kabuapp.kabuapp.feature.auth.User;
 
-@Database(entities = { User.class, Lesson.class, Lifetime.class, Exam.class, Settings.class }, version = 4)
+@Database(entities = { User.class, Lesson.class, Lifetime.class, Exam.class }, version = 5)
 @TypeConverters({ LocalDateConverter.class, LocalDateTimeConverter.class, DbTypeConverter.class })
 public abstract class AppDatabase extends RoomDatabase
 {
@@ -29,7 +27,6 @@ public abstract class AppDatabase extends RoomDatabase
     public abstract ExamDao examDao();
     public abstract LessonDao lessonDao();
     public abstract LifetimeDao lifetimeDao();
-    public abstract SettingsDao settingsDao();
 
     public static AppDatabase getDatabase(final Context context)
     {

@@ -38,7 +38,7 @@ public class ExamActivity extends Activity implements SwipeRefreshLayout.OnRefre
         viewModel = new ViewModelProvider(this, new ViewModelFactory(getContainer())).get(ExamViewModel.class);
 
         // ISO dates are deliberately limited to this screen; they do not fit the schedule's date strip.
-        examAdapter = new ExamAdapter(getSettingsController().isIsoDate()
+        examAdapter = new ExamAdapter(getSettingsStore().isIsoDate()
             ? DateTimeFormatter.ISO_LOCAL_DATE
             : DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT));
 

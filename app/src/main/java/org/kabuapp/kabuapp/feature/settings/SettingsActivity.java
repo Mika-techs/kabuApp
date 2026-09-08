@@ -37,12 +37,12 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
         {
             if (isGranted)
             {
-                getSettingsController().setNotificationNextDayExam(true);
+                getSettingsStore().setNotificationNextDayExam(true);
             }
             else
             {
                 binding.settingNotNextDayExam.setChecked(false);
-                getSettingsController().setNotificationNextDayExam(false);
+                getSettingsStore().setNotificationNextDayExam(false);
             }
         });
 
@@ -116,15 +116,7 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
         if (!selectedUsername.equals(currentActiveUsername))
         {
             getIoExecutor().execute(() ->
-            {
-                getSessionController().switchAccount(selectedUsername, objects -> runOnUiThread(() ->
-                {
-                    Intent intent = new Intent(SettingsActivity.this, SettingsActivity.class);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(intent);
-                    finish();
-                }));
-            });
+                getSessionController().switchAccount(selectedUsername, () -> runOnUiThread(this::refreshAccountsSpinner)));
         }
     }
 
@@ -133,7 +125,7 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
     {
         getIoExecutor().execute(() ->
         {
-            getSessionController().removeUser(getAuthController().getId(), objects ->
+            getSessionController().removeUser(getAuthController().getId(), () ->
             {
                 runOnUiThread(this::refreshAccountsSpinner);
                 if (getAuthController().getUser() == null && !getAuthController().getUsers().isEmpty())
@@ -167,16 +159,16 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
 
     private void isoSwitchSetup()
     {
-        binding.settingIsoDate.setChecked(getSettingsController().isIsoDate());
+        binding.settingIsoDate.setChecked(getSettingsStore().isIsoDate());
         binding.settingIsoDate.setOnCheckedChangeListener((c, ac) ->
         {
-            getSettingsController().setIsoDate(ac);
+            getSettingsStore().setIsoDate(ac);
         });
     }
 
     private void notificationNextDayExamSetup()
     {
-        binding.settingNotNextDayExam.setChecked(getSettingsController().isNotificationNextDayExam());
+        binding.settingNotNextDayExam.setChecked(getSettingsStore().isNotificationNextDayExam());
         binding.settingNotNextDayExam.setOnCheckedChangeListener((c, ac) ->
         {
             if (ac)
@@ -186,7 +178,7 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
                     if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                         == PackageManager.PERMISSION_GRANTED)
                     {
-                        getSettingsController().setNotificationNextDayExam(true);
+                        getSettingsStore().setNotificationNextDayExam(true);
                     }
                     else
                     {
@@ -195,12 +187,12 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
                 }
                 else
                 {
-                    getSettingsController().setNotificationNextDayExam(true);
+                    getSettingsStore().setNotificationNextDayExam(true);
                 }
             }
             else
             {
-                getSettingsController().setNotificationNextDayExam(false);
+                getSettingsStore().setNotificationNextDayExam(false);
             }
         });
     }

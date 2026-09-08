@@ -15,8 +15,7 @@ import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 import org.kabuapp.kabuapp.R;
 import org.kabuapp.kabuapp.feature.exam.Exam;
-import org.kabuapp.kabuapp.feature.settings.MemSettings;
-import org.kabuapp.kabuapp.feature.settings.SettingsController;
+import org.kabuapp.kabuapp.feature.settings.SettingsStore;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
 import org.kabuapp.kabuapp.feature.exam.ExamActivity;
 import org.kabuapp.kabuapp.core.util.DateTimeUtils;
@@ -69,7 +68,7 @@ public class ExamNotificationWorker extends Worker
     /** A single-day exam starting tomorrow, for any stored account, or null. */
     private Exam getExamNextDay(AppDatabase db)
     {
-        if (!isNotificationExamNextDay(db))
+        if (!new SettingsStore(getApplicationContext()).isNotificationNextDayExam())
         {
             return null;
         }
@@ -90,13 +89,5 @@ public class ExamNotificationWorker extends Worker
         manager.createNotificationChannel(channel);
     }
 
-    /* Custom DB access */
-
-    private boolean isNotificationExamNextDay(AppDatabase db)
-    {
-        SettingsController settingsController = new SettingsController(null, db);
-        MemSettings memSettings = settingsController.getMemSettingsFromDb();
-        return memSettings != null && memSettings.isNotificationExamNextDay();
-    }
 
 }

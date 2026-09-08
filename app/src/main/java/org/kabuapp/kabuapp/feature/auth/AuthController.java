@@ -5,7 +5,6 @@ import org.kabuapp.kabuapp.core.data.AppDatabase;
 import org.kabuapp.kabuapp.core.data.ActiveUserStore;
 import org.kabuapp.kabuapp.core.data.CredentialCipher;
 import org.kabuapp.kabuapp.core.net.ApiException;
-import org.kabuapp.kabuapp.core.net.Callback;
 import org.kabuapp.kabuapp.core.net.TokenSource;
 
 import java.security.GeneralSecurityException;
@@ -84,45 +83,26 @@ public class AuthController implements TokenSource
         activeUserStore.set(null);
     }
 
-    public boolean setCredentials(String username, String password, Callback callback, Object[] args)
-    {
-        if (username != null && !username.isEmpty() && password != null && !password.isEmpty())
-        {
-            stateholder.setUsername(username);
-            stateholder.setPassword(password);
-            stateholder.getUsers().put(username, activeUserStore.get());
-            // Authentication is a network call, so it must not run on the caller's thread:
-            // setCredentials is invoked straight from a click listener.
-            ioExecutor.execute(() -> auth(callback, args));
-            return true;
-        }
-        return false;
-    }
-
     /**
-     * Authenticates with the credentials currently held in the stateholder.
-     * On failure {@code args[0]} carries the {@link ApiException.Kind} so the caller can tell
-     * bad credentials apart from an unreachable server.
+     * Authenticates and stores the account. Blocks, so it must be called off the main thread.
+     *
+     * @return {@code null} on success, otherwise why it failed
      */
-    public void auth(Callback callback, Object[] args)
+    public ApiException.Kind login(String username, String password)
     {
+        stateholder.setUsername(username);
+        stateholder.setPassword(password);
+        stateholder.getUsers().put(username, activeUserStore.get());
         try
         {
-            stateholder.setToken(authApi.auth(stateholder.getUsername(), stateholder.getPassword()));
-            dbExecutor.execute(this::save);
-            if (callback != null)
-            {
-                callback.callback(args);
-            }
+            stateholder.setToken(authApi.auth(username, password));
+            save();
+            return null;
         }
         catch (ApiException e)
         {
             LOG.log(Level.WARNING, "authentication failed: " + e.getKind());
-            if (callback != null && args != null && args.length > 0)
-            {
-                args[0] = e.getKind();
-                callback.callback(args);
-            }
+            return e.getKind();
         }
     }
 

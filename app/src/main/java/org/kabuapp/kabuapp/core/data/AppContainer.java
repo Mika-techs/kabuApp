@@ -15,7 +15,7 @@ import org.kabuapp.kabuapp.feature.exam.ExamRepository;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleApi;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleMapper;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleRepository;
-import org.kabuapp.kabuapp.feature.settings.SettingsController;
+import org.kabuapp.kabuapp.feature.settings.SettingsStore;
 
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -49,7 +49,7 @@ public class AppContainer
     private final ScheduleRepository scheduleRepository;
     private final ExamRepository examRepository;
     private final SessionController sessionController;
-    private final SettingsController settingsController;
+    private final SettingsStore settingsStore;
 
     public AppContainer(Context context)
     {
@@ -80,6 +80,6 @@ public class AppContainer
             new ExamApi(authedClient), new ExamMapper(), lifetimeController, db, dbExecutor, ioExecutor);
         sessionController = new SessionController(
             db, examRepository, lifetimeController, authController, scheduleRepository, dbExecutor);
-        settingsController = new SettingsController(dbExecutor, db);
+        settingsStore = new SettingsStore(context);
     }
 }
