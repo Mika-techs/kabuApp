@@ -1,8 +1,6 @@
 package org.kabuapp.kabuapp;
 
 import android.app.Application;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.StrictMode;
 import androidx.work.Constraints;
 import androidx.work.ExistingPeriodicWorkPolicy;
@@ -10,117 +8,54 @@ import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import com.google.android.material.color.DynamicColors;
 import lombok.Getter;
-import lombok.Setter;
-import org.kabuapp.kabuapp.api.DigikabuApiService;
-import org.kabuapp.kabuapp.data.memory.AuthStateholder;
-import org.kabuapp.kabuapp.data.memory.MemExams;
-import org.kabuapp.kabuapp.data.memory.MemLifetime;
-import org.kabuapp.kabuapp.data.memory.MemSchedule;
-import org.kabuapp.kabuapp.db.ExamMapper;
-import org.kabuapp.kabuapp.db.ScheduleMapper;
-import org.kabuapp.kabuapp.db.controller.AuthController;
-import org.kabuapp.kabuapp.db.controller.ExamController;
-import org.kabuapp.kabuapp.db.controller.LifetimeController;
-import org.kabuapp.kabuapp.db.controller.ScheduleController;
-import org.kabuapp.kabuapp.db.controller.SessionController;
-import org.kabuapp.kabuapp.db.controller.SettingsController;
-import org.kabuapp.kabuapp.db.model.AppDatabase;
-import org.kabuapp.kabuapp.notifications.ExamNotificationWorker;
-import org.kabuapp.kabuapp.schedule.ScheduleUpdateTask;
-import org.kabuapp.kabuapp.utils.DateTimeUtils;
+import org.kabuapp.kabuapp.core.data.AppContainer;
+import org.kabuapp.kabuapp.feature.notification.ExamNotificationWorker;
 
-import java.io.IOException;
 import java.util.Calendar;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Owns the object graph and the one-off startup work. Dependencies live in {@link AppContainer}
+ * rather than as fields here, so nothing can replace them at runtime.
+ */
 @Getter
-@Setter
 public class KabuApp extends Application
 {
-    @Getter
-    public static class GlobalTaskManager
-    {
-        private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    }
+    private static final int NOTIFICATION_HOUR = 9;
+    private static final String DAILY_WORK_NAME = "DailyNotify";
 
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private DigikabuApiService digikabuApiService;
-    private ScheduleController scheduleController;
-    private LifetimeController lifetimeController;
-    private ScheduleUpdateTask scheduleUpdateTask;
-    private SettingsController settingsController;
-    private SessionController sessionController;
-    private ExecutorService executorService;
-    private ScheduleMapper scheduleMapper;
-    private AuthController authController;
-    private ExamController examController;
-    private ExamMapper examMapper;
-    private MemSchedule schedule;
-    private AppDatabase db;
+    private AppContainer container;
 
     @Override
     public void onCreate()
     {
         super.onCreate();
 
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-        StrictMode.setThreadPolicy(policy);
-
+        enableStrictModeInDebug();
         DynamicColors.applyToActivitiesIfAvailable(this);
 
-        executorService = Executors.newCachedThreadPool();
+        container = new AppContainer(this);
+        container.getSessionController().loadSession();
 
-        schedule = new MemSchedule();
-        schedule.setSelectedDate(DateTimeUtils.getLocalDate());
-
-        db = AppDatabase.getDatabase(getApplicationContext());
-        digikabuApiService = new DigikabuApiService();
-        scheduleMapper = new ScheduleMapper();
-        examMapper = new ExamMapper();
-
-        lifetimeController = new LifetimeController(db, executorService, new MemLifetime());
-        scheduleController = new ScheduleController(digikabuApiService, scheduleMapper, lifetimeController, schedule, db, executorService);
-        authController = new AuthController(new AuthStateholder(), db, digikabuApiService, executorService);
-        examController = new ExamController(new MemExams(), examMapper, lifetimeController, digikabuApiService, executorService, db);
-        sessionController = new SessionController(db, examController, lifetimeController, authController, scheduleController, executorService);
-        scheduleUpdateTask = new ScheduleUpdateTask(null);
-        settingsController = new SettingsController(executorService, db);
-
-        sessionController.loadSession(scheduleUpdateTask);
-
-        settingsController.loadSettings();
         startNotificationWorker();
     }
 
-    @Override
-    public void onTerminate()
+    /**
+     * The permissive policy this replaces was hiding real violations: authentication used to run
+     * its HTTP call on the main thread, and two account operations touched the database there.
+     */
+    private void enableStrictModeInDebug()
     {
-        super.onTerminate();
-        try
+        if (!BuildConfig.DEBUG)
         {
-            digikabuApiService.closeHttpClient();
+            return;
         }
-        catch (IOException ignored)
-        {
-        }
-        if (executorService != null && !executorService.isShutdown())
-        {
-            executorService.shutdown();
-            try
-            {
-                if (!executorService.awaitTermination(60, TimeUnit.SECONDS))
-                {
-                    executorService.shutdownNow();
-                }
-            }
-            catch (InterruptedException e)
-            {
-                executorService.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
+        StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
+            .detectNetwork()
+            .detectDiskReads()
+            .detectDiskWrites()
+            .penaltyLog()
+            .build());
     }
 
     private void startNotificationWorker()
@@ -132,7 +67,7 @@ public class KabuApp extends Application
         Calendar calendar = Calendar.getInstance();
         long now = calendar.getTimeInMillis();
 
-        calendar.set(Calendar.HOUR_OF_DAY, 9);
+        calendar.set(Calendar.HOUR_OF_DAY, NOTIFICATION_HOUR);
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
 
@@ -150,9 +85,8 @@ public class KabuApp extends Application
                 .build();
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "DailyNotify",
+            DAILY_WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
-            dailyWorkRequest
-        );
+            dailyWorkRequest);
     }
 }

@@ -19,3 +19,18 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# MetisJson deserialises by reflecting over field names, so renaming a DTO field silently
+# produces empty data rather than an error. The DTOs also carry @Keep; this covers the
+# library's own reflective access.
+-keep class io.lilithtechs.metisJson.** { *; }
+
+# Room entities are records; keep their component accessors, which the generated DAO
+# implementations and the type converters reach by name.
+-keepclassmembers class * {
+    @androidx.room.ColumnInfo <fields>;
+}
+
+# Keep line numbers so a crash report from a release build is readable.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
