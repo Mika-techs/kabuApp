@@ -9,6 +9,10 @@ import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * A stored account. Password and token are held as Keystore-encrypted blobs; see
+ * {@link org.kabuapp.kabuapp.core.data.CredentialCipher}.
+ */
 @Getter
 @Setter
 @AllArgsConstructor
@@ -20,10 +24,10 @@ public class User
     private UUID id;
     @ColumnInfo(name = "username")
     private String username;
-    @ColumnInfo(name = "password")
-    private String password;
-    @ColumnInfo(name = "token")
-    private String token;
+    @ColumnInfo(name = "password", typeAffinity = ColumnInfo.BLOB)
+    private byte[] password;
+    @ColumnInfo(name = "token", typeAffinity = ColumnInfo.BLOB)
+    private byte[] token;
     @ColumnInfo(name = "standard")
     private Boolean standard;
 }

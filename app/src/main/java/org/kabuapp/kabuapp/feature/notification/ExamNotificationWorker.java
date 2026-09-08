@@ -14,12 +14,8 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 import org.kabuapp.kabuapp.R;
-import org.kabuapp.kabuapp.feature.exam.MemExam;
-import org.kabuapp.kabuapp.feature.exam.MemExams;
+import org.kabuapp.kabuapp.feature.exam.Exam;
 import org.kabuapp.kabuapp.feature.settings.MemSettings;
-import org.kabuapp.kabuapp.feature.exam.ExamMapper;
-import org.kabuapp.kabuapp.feature.exam.ExamController;
-import org.kabuapp.kabuapp.core.data.LifetimeController;
 import org.kabuapp.kabuapp.feature.settings.SettingsController;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
 import org.kabuapp.kabuapp.feature.exam.ExamActivity;
@@ -29,6 +25,8 @@ import static androidx.core.content.ContextCompat.getSystemService;
 
 public class ExamNotificationWorker extends Worker
 {
+    private static final short SINGLE_DAY = 1;
+
     public ExamNotificationWorker(@NonNull Context context, @NonNull WorkerParameters params)
     {
         super(context, params);
@@ -40,15 +38,15 @@ public class ExamNotificationWorker extends Worker
     public Result doWork()
     {
         AppDatabase db = AppDatabase.getDatabase(getApplicationContext());
-        MemExam memExam = getExamNextDay(db);
-        if (memExam != null)
+        Exam exam = getExamNextDay(db);
+        if (exam != null)
         {
-            showNotification(memExam);
+            showNotification(exam);
         }
         return Result.success();
     }
 
-    private void showNotification(MemExam memExam)
+    private void showNotification(Exam exam)
     {
         Intent intent = new Intent(getApplicationContext(), ExamActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent,
@@ -57,7 +55,7 @@ public class ExamNotificationWorker extends Worker
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), "KabuAppExamNextDay")
             .setSmallIcon(R.drawable.kabu_app_mc)
             .setContentTitle(getApplicationContext().getString(R.string.nofification_exam_next_day_title))
-            .setContentText(memExam.getInfo())
+            .setContentText(exam.getInfo())
             .setContentIntent(pendingIntent)
             .setAutoCancel(true);
 
@@ -68,17 +66,17 @@ public class ExamNotificationWorker extends Worker
         NotificationManagerCompat.from(getApplicationContext()).notify(1, builder.build());
     }
 
-    private MemExam getExamNextDay(AppDatabase db)
+    /** A single-day exam starting tomorrow, for any stored account, or null. */
+    private Exam getExamNextDay(AppDatabase db)
     {
-        if (isNotificationExamNextDay(db))
+        if (!isNotificationExamNextDay(db))
         {
-            MemExam memExam = getMemExams(db).getExams().get(DateTimeUtils.getLocalDate().plusDays(1));
-            if (memExam != null && memExam.getDuration() == 1)
-            {
-                return memExam;
-            }
+            return null;
         }
-        return null;
+        return db.examDao().getByDate(DateTimeUtils.getLocalDate().plusDays(1)).stream()
+            .filter(exam -> exam.getDuration() != null && exam.getDuration() == SINGLE_DAY)
+            .findFirst()
+            .orElse(null);
     }
 
     private void createChannel()
@@ -101,11 +99,4 @@ public class ExamNotificationWorker extends Worker
         return memSettings != null && memSettings.isNotificationExamNextDay();
     }
 
-    private MemExams getMemExams(AppDatabase db)
-    {
-        ExamController examController =
-            new ExamController(new MemExams(), new ExamMapper(),
-                new LifetimeController(null, null, null), null, null, db);
-        return examController.getAllMemExamsFromDb();
-    }
 }

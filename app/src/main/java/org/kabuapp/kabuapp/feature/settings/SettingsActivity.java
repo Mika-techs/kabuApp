@@ -14,11 +14,13 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
 import androidx.core.text.HtmlCompat;
 import org.kabuapp.kabuapp.R;
+import org.kabuapp.kabuapp.domain.DbType;
 import org.kabuapp.kabuapp.feature.exam.ExamActivity;
 import org.kabuapp.kabuapp.core.ui.Activity;
 import org.kabuapp.kabuapp.feature.auth.LoginActivity;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleActivity;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.List;
@@ -207,14 +209,15 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
     {
         binding.debugSwitch.setOnCheckedChangeListener((c, ac) ->
         {
-            if (ac && getLifetimeController().getMemLifetime().getExamLastUpdate() != null
-                && getLifetimeController().getMemLifetime().getScheduleLastUpdate() != null)
+            LocalDateTime scheduleUpdate = getLifetimeController().getLastUpdate(DbType.SCHEDULE);
+            LocalDateTime examUpdate = getLifetimeController().getLastUpdate(DbType.EXAM);
+            if (ac && scheduleUpdate != null && examUpdate != null)
             {
                 DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM);
                 binding.debugScheduleLifetime.setText(HtmlCompat.fromHtml(getApplicationContext().getString(R.string.schedule_title) + "<br/>" +
-                    formatter.format(getLifetimeController().getMemLifetime().getScheduleLastUpdate()), HtmlCompat.FROM_HTML_MODE_LEGACY));
+                    formatter.format(scheduleUpdate), HtmlCompat.FROM_HTML_MODE_LEGACY));
                 binding.debugExamLifetime.setText(HtmlCompat.fromHtml(getApplicationContext().getString(R.string.exam_title) + "<br/>" +
-                    formatter.format(getLifetimeController().getMemLifetime().getExamLastUpdate()), HtmlCompat.FROM_HTML_MODE_LEGACY));
+                    formatter.format(examUpdate), HtmlCompat.FROM_HTML_MODE_LEGACY));
             }
             else
             {

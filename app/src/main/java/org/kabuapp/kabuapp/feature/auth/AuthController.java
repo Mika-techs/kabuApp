@@ -2,10 +2,12 @@ package org.kabuapp.kabuapp.feature.auth;
 
 import lombok.AllArgsConstructor;
 import org.kabuapp.kabuapp.core.data.AppDatabase;
+import org.kabuapp.kabuapp.core.data.CredentialCipher;
 import org.kabuapp.kabuapp.core.net.ApiException;
 import org.kabuapp.kabuapp.core.net.Callback;
 import org.kabuapp.kabuapp.core.net.TokenSource;
 
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,6 +26,7 @@ public class AuthController implements TokenSource
     private AppDatabase db;
     private AuthApi authApi;
     private ExecutorService executorService;
+    private CredentialCipher cipher;
 
     @Override
     public String currentToken()
@@ -123,15 +126,16 @@ public class AuthController implements TokenSource
         User existingUser = db.userDao().get(stateholder.getDbId());
         if (existingUser == null)
         {
-            User user = new User(UUID.randomUUID(), stateholder.getUsername(), stateholder.getPassword(), stateholder.getToken(), true);
+            User user = new User(UUID.randomUUID(), stateholder.getUsername(),
+                encrypt(stateholder.getPassword()), encrypt(stateholder.getToken()), true);
             stateholder.setDbId(user.getId());
             db.userDao().insert(user);
         }
         else
         {
             existingUser.setUsername(stateholder.getUsername());
-            existingUser.setPassword(stateholder.getPassword());
-            existingUser.setToken(stateholder.getToken());
+            existingUser.setPassword(encrypt(stateholder.getPassword()));
+            existingUser.setToken(encrypt(stateholder.getToken()));
             db.userDao().update(existingUser);
         }
     }
@@ -141,17 +145,8 @@ public class AuthController implements TokenSource
         List<User> users = db.userDao().getAll();
         users.stream().filter(user -> Boolean.TRUE.equals(user.getStandard()) && !user.getUsername().isEmpty()).findAny().ifPresentOrElse(user ->
         {
-            stateholder.setUsername(user.getUsername());
-            stateholder.setPassword(user.getPassword());
-            stateholder.setToken(user.getToken());
-            stateholder.setDbId(user.getId());
-        }, () -> users.stream().filter(user -> !user.getUsername().isEmpty()).findFirst().ifPresent(user ->
-        {
-            stateholder.setUsername(user.getUsername());
-            stateholder.setPassword(user.getPassword());
-            stateholder.setToken(user.getToken());
-            stateholder.setDbId(user.getId());
-        }));
+            load(user);
+        }, () -> users.stream().filter(user -> !user.getUsername().isEmpty()).findFirst().ifPresent(this::load));
         return stateholder.getDbId();
     }
 
@@ -180,20 +175,50 @@ public class AuthController implements TokenSource
         {
             user.setStandard(true);
             db.userDao().update(user);
-            stateholder.setUsername(user.getUsername());
-            stateholder.setPassword(user.getPassword());
-            stateholder.setToken(user.getToken());
-            stateholder.setDbId(user.getId());
+            load(user);
         });
         return stateholder.getDbId();
     }
 
+    private void load(User user)
+    {
+        stateholder.setUsername(user.getUsername());
+        stateholder.setPassword(decrypt(user.getPassword()));
+        stateholder.setToken(decrypt(user.getToken()));
+        stateholder.setDbId(user.getId());
+    }
+
+    private byte[] encrypt(String value)
+    {
+        try
+        {
+            return cipher.encrypt(value);
+        }
+        catch (GeneralSecurityException e)
+        {
+            LOG.log(Level.SEVERE, "could not encrypt credentials", e);
+            return null;
+        }
+    }
+
+    private String decrypt(byte[] value)
+    {
+        try
+        {
+            return cipher.decrypt(value);
+        }
+        catch (GeneralSecurityException e)
+        {
+            LOG.log(Level.SEVERE, "could not decrypt credentials, account needs a new login", e);
+            return null;
+        }
+    }
+
     public boolean isInitialized()
     {
-        return  stateholder.getUsername() != null &&
-                !stateholder.getUsername().isEmpty() &&
-                !stateholder.getPassword().isEmpty() &&
-                !stateholder.getToken().isEmpty();
+        return  stateholder.getUsername() != null && !stateholder.getUsername().isEmpty()
+                && stateholder.getPassword() != null && !stateholder.getPassword().isEmpty()
+                && stateholder.getToken() != null && !stateholder.getToken().isEmpty();
     }
 
     public List<String> getUsers()

@@ -58,13 +58,17 @@ public class SessionController
         callback.callback(null);
     }
 
+    /**
+     * Deleting the user row cascades to schedule, exams and lifetimes, so only the in-memory
+     * state still needs clearing.
+     */
     public void removeUser(UUID userId)
     {
         db.userDao().delete(userId);
         authController.removeUser(userId);
-        scheduleController.resetSchedule(userId);
-        examController.resetExams(userId);
-        lifetimeController.resetLifetimes(userId);
+        scheduleController.resetState();
+        examController.resetState();
+        lifetimeController.resetState();
     }
 
     public void resetSate()

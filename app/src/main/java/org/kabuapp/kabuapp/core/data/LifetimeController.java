@@ -1,42 +1,43 @@
 package org.kabuapp.kabuapp.core.data;
 
-import org.kabuapp.kabuapp.core.data.MemLifetime;
-import org.kabuapp.kabuapp.core.data.AppDatabase;
+import lombok.AllArgsConstructor;
+import org.kabuapp.kabuapp.core.util.DateTimeUtils;
 import org.kabuapp.kabuapp.domain.DbType;
-import org.kabuapp.kabuapp.core.data.Lifetime;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
+/**
+ * Tracks when each kind of cached data was last refreshed, so callers can express staleness as a
+ * Duration instead of invalidating caches by hand.
+ */
 @AllArgsConstructor
 public class LifetimeController
 {
+    private final Map<DbType, LocalDateTime> lastUpdates = new EnumMap<>(DbType.class);
+
     private AppDatabase db;
     private ExecutorService executorService;
-    @Getter
-    private MemLifetime memLifetime;
 
     public void updateLifetime(DbType type)
     {
-        switch (type)
-        {
-            case EXAM -> memLifetime.setExamLastUpdate(LocalDateTime.now());
-            case SCHEDULE -> memLifetime.setScheduleLastUpdate(LocalDateTime.now());
-        }
+        lastUpdates.put(type, DateTimeUtils.getLocalDateTime());
+    }
+
+    public LocalDateTime getLastUpdate(DbType type)
+    {
+        return lastUpdates.get(type);
     }
 
     public boolean isLifetimeExpired(Duration duration, DbType type)
     {
-        return switch (type)
-        {
-            case EXAM -> memLifetime.getExamLastUpdate() == null  || memLifetime.getExamLastUpdate().isBefore(LocalDateTime.now().minus(duration));
-            case SCHEDULE -> memLifetime.getScheduleLastUpdate() == null  || memLifetime.getScheduleLastUpdate().isBefore(LocalDateTime.now().minus(duration));
-        };
+        LocalDateTime lastUpdate = lastUpdates.get(type);
+        return lastUpdate == null || lastUpdate.isBefore(DateTimeUtils.getLocalDateTime().minus(duration));
     }
 
     public void resetLifetimes(UUID userId)
@@ -47,25 +48,16 @@ public class LifetimeController
 
     public void resetState()
     {
-        memLifetime.setScheduleLastUpdate(null);
-        memLifetime.setExamLastUpdate(null);
+        lastUpdates.clear();
     }
 
     public void saveLifetimeToDb(UUID userId)
     {
         executorService.execute(() ->
         {
-            Lifetime lifetime = db.lifetimeDao().get(userId);
-            if (lifetime != null)
+            for (DbType type : DbType.values())
             {
-                lifetime.setExamLastUpdate(memLifetime.getExamLastUpdate());
-                lifetime.setScheduleLastUpdate(memLifetime.getScheduleLastUpdate());
-                db.lifetimeDao().update(lifetime);
-            }
-            else
-            {
-                lifetime = new Lifetime(UUID.randomUUID(), userId, memLifetime.getScheduleLastUpdate(), memLifetime.getExamLastUpdate());
-                db.lifetimeDao().insert(lifetime);
+                db.lifetimeDao().upsert(new Lifetime(userId, type, lastUpdates.get(type)));
             }
         });
     }
@@ -74,13 +66,8 @@ public class LifetimeController
     {
         executorService.execute(() ->
         {
-            Lifetime lifetime = db.lifetimeDao().get(userId);
-            if (lifetime != null)
-            {
-                memLifetime.setDbId(lifetime.getId());
-                memLifetime.setScheduleLastUpdate(lifetime.getScheduleLastUpdate());
-                memLifetime.setExamLastUpdate(lifetime.getExamLastUpdate());
-            }
+            List<Lifetime> lifetimes = db.lifetimeDao().get(userId);
+            lifetimes.forEach(lifetime -> lastUpdates.put(lifetime.getDbType(), lifetime.getLastUpdate()));
         });
     }
 }

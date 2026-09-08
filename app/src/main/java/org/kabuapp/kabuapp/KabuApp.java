@@ -19,7 +19,7 @@ import org.kabuapp.kabuapp.feature.exam.ExamApi;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleApi;
 import org.kabuapp.kabuapp.feature.auth.AuthStateholder;
 import org.kabuapp.kabuapp.feature.exam.MemExams;
-import org.kabuapp.kabuapp.core.data.MemLifetime;
+import org.kabuapp.kabuapp.core.data.CredentialCipher;
 import org.kabuapp.kabuapp.feature.schedule.MemSchedule;
 import org.kabuapp.kabuapp.feature.exam.ExamMapper;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleMapper;
@@ -97,14 +97,14 @@ public class KabuApp extends Application
             .callTimeout(CALL_TIMEOUT)
             .build();
         AuthApi authApi = new AuthApi(baseClient);
-        authController = new AuthController(new AuthStateholder(), db, authApi, executorService);
+        authController = new AuthController(new AuthStateholder(), db, authApi, executorService, new CredentialCipher());
 
         OkHttpClient authedClient = baseClient.newBuilder()
             .addInterceptor(new AuthInterceptor(authController))
             .authenticator(new TokenAuthenticator(authController))
             .build();
 
-        lifetimeController = new LifetimeController(db, executorService, new MemLifetime());
+        lifetimeController = new LifetimeController(db, executorService);
         scheduleController = new ScheduleController(
             new ScheduleApi(authedClient), scheduleMapper, lifetimeController, schedule, db, executorService);
         examController = new ExamController(

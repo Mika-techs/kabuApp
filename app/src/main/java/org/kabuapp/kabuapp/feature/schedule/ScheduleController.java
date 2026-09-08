@@ -73,14 +73,13 @@ public class ScheduleController
     /** Fetches two weeks from the start of the current week. A 401 is retried by the HTTP layer. */
     private void fetchSchedule(UUID userId)
     {
-        executorService.execute(() -> db.lessonDao().deletePerUser(userId));
         LocalDate begin = DateTimeUtils.getFirstDayOfWeek();
         try
         {
             List<LessonResponse> responses = scheduleApi.getSchedule(begin, SCHEDULE_DAYS);
             schedule.getLessons().clear();
             scheduleMapper.mapApiResToSchedule(responses, schedule);
-            executorService.execute(() -> db.lessonDao().insertAll(scheduleMapper.mapScheduleToDb(schedule, userId)));
+            db.lessonDao().replaceForUser(userId, scheduleMapper.mapScheduleToDb(schedule, userId));
         }
         catch (ApiException e)
         {

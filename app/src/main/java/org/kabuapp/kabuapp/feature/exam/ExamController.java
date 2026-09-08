@@ -63,7 +63,6 @@ public class ExamController
     /** A 401 is retried by the HTTP layer, so this runs once. */
     private void fetchExams(UUID userId)
     {
-        executorService.execute(() -> db.examDao().deletePerUser(userId));
         exams.getExams().clear();
         try
         {
@@ -99,7 +98,7 @@ public class ExamController
     {
         List<ExamResponse> responses = examApi.getExams(month);
         examMapper.mapApiToExams(responses, exams);
-        executorService.execute(() -> db.examDao().insertAll(examMapper.mapExamsToDb(exams, userId)));
+        db.examDao().replaceForUser(userId, examMapper.mapExamsToDb(exams, userId));
     }
 
     public void resetExams(UUID userId)
@@ -113,10 +112,4 @@ public class ExamController
         exams.getExams().clear();
     }
 
-    public MemExams getAllMemExamsFromDb()
-    {
-        MemExams memExams = new MemExams();
-        examMapper.mapDbToExams(db.examDao().getAll(), memExams);
-        return memExams;
-    }
 }

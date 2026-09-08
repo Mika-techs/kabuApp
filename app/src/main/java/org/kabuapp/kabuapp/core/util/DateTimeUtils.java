@@ -1,6 +1,7 @@
 package org.kabuapp.kabuapp.core.util;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 public class DateTimeUtils
@@ -12,6 +13,11 @@ public class DateTimeUtils
     public static LocalTime getLocalTime()
     {
         return LocalTime.now();
+    }
+
+    public static LocalDateTime getLocalDateTime()
+    {
+        return LocalDateTime.now();
     }
 
     public static LocalDate getLocalDate()

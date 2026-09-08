@@ -51,11 +51,10 @@ public class ExamMapper
     {
         return exams.getExams().values().stream().map(exam ->
             new Exam(
-                exam.getDbId(),
                 userId,
                 exam.getBeginn(),
-                exam.getDuration(),
-                exam.getInfo())).collect(Collectors.toList());
+                exam.getInfo(),
+                exam.getDuration())).collect(Collectors.toList());
     }
 
     public void mapDbToExams(List<Exam> dbExams, MemExams exams)
@@ -65,7 +64,7 @@ public class ExamMapper
             dbExams.forEach(dbExam ->
             {
                 MemExam exam = new MemExam(
-                        dbExam.getId(),
+                        null,
                         dbExam.getDate(),
                         dbExam.getDuration(),
                         dbExam.getInfo());

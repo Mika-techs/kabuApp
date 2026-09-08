@@ -64,26 +64,16 @@ public class ScheduleMapper
         {
             schedule.getLessons().values().forEach(lessonList ->
             {
-                lessonList.forEach(lesson ->
-                {
-                    if (lesson.getDbId() == null)
-                    {
-                        lesson.setDbId(UUID.randomUUID());
-                    }
-                    Lesson dbLesson = new Lesson(
-                            lesson.getDbId(),
-                            userId,
-                            lesson.getBegin(),
-                            lesson.getEnd(),
-                            lesson.getDate(),
-                            lesson.getGroup(),
-                            lesson.getMaxGroup(),
-                            lesson.getName(),
-                            lesson.getTeacher(),
-                            lesson.getRoom()
-                    );
-                    dbLessons.add(dbLesson);
-                });
+                lessonList.forEach(lesson -> dbLessons.add(new Lesson(
+                        userId,
+                        lesson.getDate(),
+                        lesson.getBegin(),
+                        lesson.getGroup(),
+                        lesson.getEnd(),
+                        lesson.getMaxGroup(),
+                        lesson.getName(),
+                        lesson.getTeacher(),
+                        lesson.getRoom())));
             });
         }
         return dbLessons;
@@ -102,7 +92,7 @@ public class ScheduleMapper
                     dbLesson.getName(),
                     dbLesson.getTeacher(),
                     dbLesson.getRoom(),
-                    dbLesson.getId());
+                    null);
             if (!schedule.getLessons().containsKey(lesson.getDate()))
             {
                 schedule.getLessons().put(lesson.getDate(), new ArrayList<>());
