@@ -66,6 +66,15 @@ public final class LessonPeriods
         return begin((short) (period + 1));
     }
 
+    /**
+     * End of the long morning break, i.e. the start of the first period after it. The break is not
+     * part of any period, so neither {@link #begin} nor {@link #end} of a lesson block yields it.
+     */
+    public static Optional<LocalTime> firstBreakEnd()
+    {
+        return begin((short) (FIRST_BREAK_LAST_PERIOD + 1));
+    }
+
     /** True when a block from {@code begin} to {@code end} runs across the long morning break. */
     public static boolean spansFirstBreak(short begin, short end)
     {

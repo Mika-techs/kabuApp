@@ -289,7 +289,8 @@ public class ScheduleActivity extends Activity implements DateAdapter.OnDateSele
                 LessonPeriods.begin(lesson.begin()),
                 LessonPeriods.end(lesson.end()),
                 LessonPeriods.begin(LessonPeriods.FIRST_BREAK_LAST_PERIOD),
-                LessonPeriods.end(LessonPeriods.FIRST_BREAK_LAST_PERIOD)))
+                LessonPeriods.end(LessonPeriods.FIRST_BREAK_LAST_PERIOD),
+                LessonPeriods.firstBreakEnd()))
             .filter(Optional::isPresent)
             .map(Optional::get)
             .distinct()

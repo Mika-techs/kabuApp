@@ -45,6 +45,12 @@ public class LessonPeriodsTest
     }
 
     @Test
+    public void firstBreakEndIsStartOfPeriodThree()
+    {
+        assertEquals(LocalTime.of(10, 15), LessonPeriods.firstBreakEnd().orElseThrow());
+    }
+
+    @Test
     public void spansFirstBreakOnlyWhenCrossingIt()
     {
         assertTrue(LessonPeriods.spansFirstBreak((short) 1, (short) 3));
