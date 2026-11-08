@@ -22,11 +22,14 @@ public class ActiveUserStore
 
     private final SharedPreferences prefs;
     private final MutableLiveData<UUID> activeUserId = new MutableLiveData<>();
+    /** Mirrors the preference synchronously; LiveData only catches up once the main thread runs. */
+    private volatile UUID current;
 
     public ActiveUserStore(Context context)
     {
         prefs = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        activeUserId.setValue(read());
+        current = read();
+        activeUserId.setValue(current);
     }
 
     public LiveData<UUID> observe()
@@ -36,7 +39,7 @@ public class ActiveUserStore
 
     public UUID get()
     {
-        return activeUserId.getValue();
+        return current;
     }
 
     public void set(UUID userId)
@@ -49,6 +52,7 @@ public class ActiveUserStore
         {
             prefs.edit().putString(KEY_ACTIVE_USER, userId.toString()).apply();
         }
+        current = userId;
         activeUserId.postValue(userId);
     }
 

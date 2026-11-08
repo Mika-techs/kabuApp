@@ -137,15 +137,13 @@ public class AuthController implements TokenSource
         return activeUserStore.get();
     }
 
-    public void getDbUsers()
+    /** Reads the account list for the switcher. Blocks, so it must run on the db executor. */
+    public void loadDbUsers()
     {
-        dbExecutor.execute(() ->
-        {
-            List<User> users = db.userDao().getAll();
-            Map<String, UUID> userMap = new LinkedHashMap<>();
-            users.forEach(user -> userMap.put(user.username(), user.id()));
-            stateholder.setUsers(userMap);
-        });
+        List<User> users = db.userDao().getAll();
+        Map<String, UUID> userMap = new LinkedHashMap<>();
+        users.forEach(user -> userMap.put(user.username(), user.id()));
+        stateholder.setUsers(userMap);
     }
 
     /**

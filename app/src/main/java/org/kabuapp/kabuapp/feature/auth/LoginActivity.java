@@ -26,6 +26,11 @@ public class LoginActivity extends Activity
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
+        whenSessionLoaded(this::onSessionLoaded);
+    }
+
+    private void onSessionLoaded()
+    {
         if (getAuthController().isInitialized())
         {
             goToSchedule();

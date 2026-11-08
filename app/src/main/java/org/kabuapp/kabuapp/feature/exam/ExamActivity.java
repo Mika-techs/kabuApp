@@ -52,7 +52,7 @@ public class ExamActivity extends Activity implements SwipeRefreshLayout.OnRefre
 
         viewModel.getRows().observe(this, examAdapter::submitList);
         viewModel.getRefreshState().observe(this, this::onRefreshState);
-        viewModel.refresh(EXAM_MAX_AGE);
+        whenSessionLoaded(() -> viewModel.refresh(EXAM_MAX_AGE));
     }
 
     private void onRefreshState(RefreshState state)

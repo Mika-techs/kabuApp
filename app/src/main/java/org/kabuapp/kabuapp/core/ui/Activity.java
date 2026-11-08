@@ -8,6 +8,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import org.kabuapp.kabuapp.KabuApp;
 import org.kabuapp.kabuapp.core.data.AppContainer;
 import org.kabuapp.kabuapp.core.data.LifetimeController;
@@ -65,6 +67,33 @@ public abstract class Activity extends AppCompatActivity
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
+        });
+    }
+
+    /**
+     * Runs {@code action} once the stored session has been restored - immediately if it already
+     * has been. Any check of {@link AuthController#isInitialized()} must go through this, otherwise
+     * a cold start sees empty credentials and sends a logged-in user back to the login screen.
+     */
+    protected void whenSessionLoaded(Runnable action)
+    {
+        LiveData<Boolean> loaded = getSessionController().isLoaded();
+        if (Boolean.TRUE.equals(loaded.getValue()))
+        {
+            action.run();
+            return;
+        }
+        loaded.observe(this, new Observer<>()
+        {
+            @Override
+            public void onChanged(Boolean isLoaded)
+            {
+                if (Boolean.TRUE.equals(isLoaded))
+                {
+                    loaded.removeObserver(this);
+                    action.run();
+                }
+            }
         });
     }
 

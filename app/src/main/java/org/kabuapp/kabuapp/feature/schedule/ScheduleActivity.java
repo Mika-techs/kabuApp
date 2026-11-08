@@ -87,7 +87,7 @@ public class ScheduleActivity extends Activity implements DateAdapter.OnDateSele
         observeViewModel();
 
         binding.swipeRefreshLayoutSchedule.setOnRefreshListener(this);
-        viewModel.refresh(SCHEDULE_MAX_AGE);
+        whenSessionLoaded(() -> viewModel.refresh(SCHEDULE_MAX_AGE));
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -193,12 +193,15 @@ public class ScheduleActivity extends Activity implements DateAdapter.OnDateSele
     protected void onStart()
     {
         super.onStart();
-        if (!getAuthController().isInitialized())
+        whenSessionLoaded(() ->
         {
-            goToLogin();
-            return;
-        }
-        startCountdown();
+            if (!getAuthController().isInitialized())
+            {
+                goToLogin();
+                return;
+            }
+            startCountdown();
+        });
         getDelegate().onStart();
     }
 

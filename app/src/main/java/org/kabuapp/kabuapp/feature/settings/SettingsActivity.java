@@ -56,7 +56,7 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
 
         accountSpinner = findViewById(R.id.account_spinner);
         accountSpinner.setOnItemSelectedListener(this);
-        refreshAccountsSpinner();
+        whenSessionLoaded(this::refreshAccountsSpinner);
 
         findViewById(R.id.add_account_button).setOnClickListener(v -> onAddAccountClicked());
         findViewById(R.id.delete_account_button).setOnClickListener(v -> onDeleteAccountClicked());
@@ -74,12 +74,14 @@ public class SettingsActivity extends Activity implements AdapterView.OnItemSele
     protected void onStart()
     {
         super.onStart();
-        if (!getAuthController().isInitialized())
+        whenSessionLoaded(() ->
         {
-            var i = new Intent(this, LoginActivity.class);
-            startActivity(i);
-            finish();
-        }
+            if (!getAuthController().isInitialized())
+            {
+                startActivity(new Intent(this, LoginActivity.class));
+                finish();
+            }
+        });
         getDelegate().onStart();
     }
 

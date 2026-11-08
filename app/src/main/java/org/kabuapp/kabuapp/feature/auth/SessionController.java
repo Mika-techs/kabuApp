@@ -1,5 +1,7 @@
 package org.kabuapp.kabuapp.feature.auth;
 
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 import org.kabuapp.kabuapp.core.data.LifetimeController;
 import org.kabuapp.kabuapp.feature.exam.ExamRepository;
 import org.kabuapp.kabuapp.feature.schedule.ScheduleRepository;
@@ -22,19 +24,35 @@ public class SessionController
     private AuthController authController;
     private ScheduleRepository scheduleRepository;
     private ExecutorService dbExecutor;
+    /**
+     * Whether the stored account has been restored into memory. Activities must not decide
+     * "logged in or not" before this is true: after the process was killed, the in-memory
+     * credentials are empty until {@link #loadSession()} has run on the db executor.
+     */
+    private final MutableLiveData<Boolean> loaded = new MutableLiveData<>(false);
+
+    public LiveData<Boolean> isLoaded()
+    {
+        return loaded;
+    }
 
     public void loadSession(Runnable onLoaded)
     {
         dbExecutor.execute(() ->
         {
             loadSyncSession();
+            loaded.postValue(true);
             onLoaded.run();
         });
     }
 
     public void loadSession()
     {
-        dbExecutor.execute(this::loadSyncSession);
+        dbExecutor.execute(() ->
+        {
+            loadSyncSession();
+            loaded.postValue(true);
+        });
     }
 
     /**
@@ -44,7 +62,7 @@ public class SessionController
     private void loadSyncSession()
     {
         UUID userId = authController.getDbUser();
-        authController.getDbUsers();
+        authController.loadDbUsers();
         lifetimeController.getDbLifetime(userId);
     }
 
