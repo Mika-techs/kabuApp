@@ -14,9 +14,9 @@ import java.util.UUID;
  */
 public class ScheduleMapper
 {
-    private static final int DAY_END = 2;
-    private static final int MONTH_START = 3;
-    private static final int MONTH_END = 5;
+    private static final int DAY_START = 3;
+    private static final int DAY_END = 5;
+    private static final int MONTH_END = 2;
     private static final int YEAR_START = 6;
     private static final int GROUP_INDEX = 0;
     private static final int MAX_GROUP_INDEX = 2;
@@ -87,12 +87,12 @@ public class ScheduleMapper
             response.getRaumLongtext());
     }
 
-    /** The API sends dd.MM.yyyy. */
+    /** The API sends MM/dd/yyyy */
     private static LocalDate parseDate(String value)
     {
         return LocalDate.of(
             Integer.parseInt(value.substring(YEAR_START)),
-            Integer.parseInt(value.substring(MONTH_START, MONTH_END)),
-            Integer.parseInt(value.substring(0, DAY_END)));
+            Integer.parseInt(value.substring(0, MONTH_END)),
+            Integer.parseInt(value.substring(DAY_START, DAY_END)));
     }
 }
