@@ -1,10 +1,11 @@
 package org.kabuapp.kabuapp.feature.exam;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+
+import static org.kabuapp.kabuapp.core.util.DateMapper.parseDate;
 
 /**
  * Converts API responses into stored exams. The API returns one entry per day, so an exam
@@ -51,14 +52,5 @@ public class ExamMapper
             }
         }
         merged.add(exam);
-    }
-
-    /** The API sends dd.MM.yyyy. */
-    private static LocalDate parseDate(String value)
-    {
-        return LocalDate.of(
-            Integer.parseInt(value.substring(YEAR_START)),
-            Integer.parseInt(value.substring(MONTH_START, MONTH_END)),
-            Integer.parseInt(value.substring(0, DAY_END)));
     }
 }
