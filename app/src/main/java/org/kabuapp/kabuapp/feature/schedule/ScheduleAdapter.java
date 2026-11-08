@@ -134,7 +134,7 @@ public class ScheduleAdapter extends ListAdapter<ScheduleRow, RecyclerView.ViewH
                 && LessonPeriods.isCurrent(row.begin(), row.end(), DateTimeUtils.getLocalTime());
             ((CardView) itemView).setCardBackgroundColor(current
                 ? resolveColorAttribute(itemView.getContext(), android.R.attr.textColorHighlight)
-                : resolveColorAttribute(itemView.getContext(), android.R.attr.colorBackground));
+                : resolveColorAttribute(itemView.getContext(), com.google.android.material.R.attr.colorSurfaceContainer));
         }
     }
 }

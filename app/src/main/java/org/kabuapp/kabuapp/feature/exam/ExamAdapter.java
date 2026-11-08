@@ -118,7 +118,7 @@ public class ExamAdapter extends ListAdapter<ExamRow, RecyclerView.ViewHolder>
 
             ((CardView) itemView).setCardBackgroundColor(row.isCurrent(DateTimeUtils.getLocalDate())
                 ? resolveColorAttribute(itemView.getContext(), android.R.attr.textColorHighlight)
-                : resolveColorAttribute(itemView.getContext(), android.R.attr.colorBackground));
+                : resolveColorAttribute(itemView.getContext(), com.google.android.material.R.attr.colorSurfaceContainer));
         }
     }
 }
