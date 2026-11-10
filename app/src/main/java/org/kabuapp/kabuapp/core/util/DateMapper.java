@@ -1,24 +1,25 @@
 package org.kabuapp.kabuapp.core.util;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
-public class DateMapper
+/**
+ * Parses the dates digikabu.de sends. The API has switched between {@code dd.MM.yyyy} and
+ * {@code MM/dd/yyyy} without notice and back again, so the separator decides the format
+ * rather than a hardcoded field order.
+ */
+public final class DateMapper
 {
-    private static final int DAY_START = 3;
-    private static final int DAY_END = 5;
-    private static final int MONTH_END = 2;
-    private static final int YEAR_START = 6;
+    private static final DateTimeFormatter GERMAN = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    private static final DateTimeFormatter US = DateTimeFormatter.ofPattern("MM/dd/yyyy");
 
     private DateMapper()
     {
     }
 
-    /** The API sends MM/dd/yyyy */
+    /** Accepts {@code dd.MM.yyyy} and {@code MM/dd/yyyy}. */
     public static LocalDate parseDate(String value)
     {
-        return LocalDate.of(
-            Integer.parseInt(value.substring(YEAR_START)),
-            Integer.parseInt(value.substring(0, MONTH_END)),
-            Integer.parseInt(value.substring(DAY_START, DAY_END)));
+        return LocalDate.parse(value, value.indexOf('/') >= 0 ? US : GERMAN);
     }
 }
